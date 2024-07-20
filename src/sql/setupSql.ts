@@ -1,3 +1,4 @@
+const setupSql = `
 -- Drop tables if they exist
 DROP TABLE IF EXISTS Play CASCADE;
 DROP TABLE IF EXISTS Game CASCADE;
@@ -35,7 +36,7 @@ CREATE TABLE Team (
     name VARCHAR(255) NOT NULL,
     abbrev VARCHAR(10) NOT NULL,
     logo VARCHAR(255),
-    placeName VARCHAR(255),
+    placeName VARCHAR(255)
 );
 
 -- Table for storing period descriptors
@@ -106,3 +107,6 @@ CREATE TABLE Linescore (
     totals JSONB NOT NULL,
     PRIMARY KEY (gameId)
 );
+`
+
+export default setupSql;

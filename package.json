@@ -13,10 +13,11 @@
   "devDependencies": {
     "@types/node": "^20.14.11",
     "@types/node-fetch": "^2.6.11",
+    "@types/pg": "^8.11.6",
     "typescript": "^5.5.3"
   },
   "dependencies": {
-    "node-fetch": "^3.3.2"
-  },
-  "type": "module"
+    "node-fetch": "^3.3.2",
+    "pg": "^8.12.0"
+  }
 }
