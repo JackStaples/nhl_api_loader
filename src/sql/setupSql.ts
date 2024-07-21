@@ -3,11 +3,13 @@ const setupSql = `
 DROP TABLE IF EXISTS Play CASCADE;
 DROP TABLE IF EXISTS Game CASCADE;
 DROP TABLE IF EXISTS Team CASCADE;
-DROP TABLE IF EXISTS PeriodDescriptor CASCADE;
+DROP TABLE IF EXISTS Period CASCADE;
 DROP TABLE IF EXISTS RosterSpot CASCADE;
-DROP TABLE IF EXISTS GameInfo CASCADE;
-DROP TABLE IF EXISTS GameReports CASCADE;
 DROP TABLE IF EXISTS Linescore CASCADE;
+DROP TABLE IF EXISTS PersonPosition CASCADE;
+DROP TABLE IF EXISTS Person CASCADE;
+DROP TABLE IF EXISTS PositionCodes CASCADE;
+DROP TABLE IF EXISTS Season CASCADE;
 
 -- Table for storing games
 CREATE TABLE Game (
@@ -39,19 +41,18 @@ CREATE TABLE Team (
     placeName VARCHAR(255)
 );
 
--- Table for storing period descriptors
-CREATE TABLE PeriodDescriptor (
+-- Table for storing periods
+CREATE TABLE Period (
     id SERIAL PRIMARY KEY,
     number INT NOT NULL,
     periodType VARCHAR(10) NOT NULL,
-    maxRegulationPeriods INT NOT NULL
 );
 
 -- Table for storing plays
 CREATE TABLE Play (
-    eventId INT PRIMARY KEY,
+    id INT PRIMARY KEY,
     gameId INT REFERENCES Game(id),
-    periodDescriptorId INT REFERENCES PeriodDescriptor(id),
+    periodId INT REFERENCES Period(id),
     timeInPeriod VARCHAR(10) NOT NULL,
     timeRemaining VARCHAR(10) NOT NULL,
     situationCode VARCHAR(50) NOT NULL,
@@ -62,42 +63,17 @@ CREATE TABLE Play (
     details JSONB
 );
 
--- Table for storing roster spots
+-- Table for storing a teams roster for a game
 CREATE TABLE RosterSpot (
     teamId INT REFERENCES Team(id),
-    playerId INT,
+    playerId INT REFERENCES Person(id),
+    gameId int References Game(id),
     firstName VARCHAR(255) NOT NULL,
     lastName VARCHAR(255) NOT NULL,
     sweaterNumber INT NOT NULL,
     positionCode VARCHAR(2) NOT NULL,
     headshot VARCHAR(255),
-    PRIMARY KEY (teamId, playerId)
-);
-
--- Table for storing game info
-CREATE TABLE GameInfo (
-    gameId INT REFERENCES Game(id),
-    referees JSONB NOT NULL,
-    linesmen JSONB NOT NULL,
-    awayTeam JSONB NOT NULL,
-    homeTeam JSONB NOT NULL,
-    PRIMARY KEY (gameId)
-);
-
--- Table for storing game reports
-CREATE TABLE GameReports (
-    gameId INT REFERENCES Game(id),
-    gameSummary TEXT NOT NULL,
-    eventSummary TEXT NOT NULL,
-    playByPlay TEXT NOT NULL,
-    faceoffSummary TEXT NOT NULL,
-    faceoffComparison TEXT NOT NULL,
-    rosters TEXT NOT NULL,
-    shotSummary TEXT NOT NULL,
-    shiftChart TEXT NOT NULL,
-    toiAway TEXT NOT NULL,
-    toiHome TEXT NOT NULL,
-    PRIMARY KEY (gameId)
+    PRIMARY KEY (teamId, playerId, gameId)
 );
 
 -- Table for storing linescores
@@ -106,6 +82,41 @@ CREATE TABLE Linescore (
     byPeriod JSONB NOT NULL,
     totals JSONB NOT NULL,
     PRIMARY KEY (gameId)
+);
+
+-- Create the PositionCodes table
+CREATE TABLE PositionCodes (
+    PositionCode VARCHAR(1) PRIMARY KEY
+);
+
+-- Insert enum values into the PositionCodes table
+INSERT INTO PositionCodes (PositionCode) VALUES ('C');
+INSERT INTO PositionCodes (PositionCode) VALUES ('D');
+INSERT INTO PositionCodes (PositionCode) VALUES ('G');
+INSERT INTO PositionCodes (PositionCode) VALUES ('L');
+INSERT INTO PositionCodes (PositionCode) VALUES ('R');
+
+-- Create the Person table
+CREATE TABLE Person (
+    id INT PRIMARY KEY,
+    firstName VARCHAR(100) NOT NULL,
+    lastName VARCHAR(100) NOT NULL
+);
+
+-- Create the PersonPosition lookup table
+CREATE TABLE PersonPosition (
+    personId INT,
+    positionCode VARCHAR(1),
+    seasonId INT
+    PRIMARY KEY (personId, PositionCode, seasonId),
+    FOREIGN KEY (personId) REFERENCES Person(id),
+    FOREIGN KEY (PositionCode) REFERENCES PositionCodes(PositionCode),
+    FOREIGN KEY (seasonId) REFERENCES Season(id)
+);
+
+CREATE TABLE Season (
+    id SERIAL PRIMARY KEY,
+    season VARCHAR(8) NOT NULL
 );
 `
 
