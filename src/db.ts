@@ -1,10 +1,8 @@
-import { Pool } from 'pg';
-import config from './config';
-import setupSql from './sql/setupSql';
+import pg from 'pg';
+import config from './config.js';
+import setupSql from './sql/setupSql.js';
 
-console.log('__dirname:', __dirname);
-
-const pool = new Pool(config);
+const pool = new pg.Pool(config);
 
 export function query(text: string, params?: any[]) {
     return pool.query(text, params);

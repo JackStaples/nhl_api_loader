@@ -11,7 +11,6 @@ DROP TABLE IF EXISTS Person CASCADE;
 DROP TABLE IF EXISTS PositionCodes CASCADE;
 DROP TABLE IF EXISTS Season CASCADE;
 
--- Table for storing games
 CREATE TABLE Game (
     id INT PRIMARY KEY,
     season INT NOT NULL,
@@ -32,7 +31,6 @@ CREATE TABLE Game (
     regPeriods INT NOT NULL
 );
 
--- Table for storing teams
 CREATE TABLE Team (
     id INT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -41,14 +39,23 @@ CREATE TABLE Team (
     placeName VARCHAR(255)
 );
 
--- Table for storing periods
+CREATE TABLE Person (
+    id INT PRIMARY KEY,
+    firstName VARCHAR(100) NOT NULL,
+    lastName VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Season (
+    id SERIAL PRIMARY KEY,
+    season VARCHAR(8) NOT NULL
+);
+
 CREATE TABLE Period (
     id SERIAL PRIMARY KEY,
     number INT NOT NULL,
-    periodType VARCHAR(10) NOT NULL,
+    periodType VARCHAR(10) NOT NULL
 );
 
--- Table for storing plays
 CREATE TABLE Play (
     id INT PRIMARY KEY,
     gameId INT REFERENCES Game(id),
@@ -63,7 +70,6 @@ CREATE TABLE Play (
     details JSONB
 );
 
--- Table for storing a teams roster for a game
 CREATE TABLE RosterSpot (
     teamId INT REFERENCES Team(id),
     playerId INT REFERENCES Person(id),
@@ -76,7 +82,6 @@ CREATE TABLE RosterSpot (
     PRIMARY KEY (teamId, playerId, gameId)
 );
 
--- Table for storing linescores
 CREATE TABLE Linescore (
     gameId INT REFERENCES Game(id),
     byPeriod JSONB NOT NULL,
@@ -84,39 +89,23 @@ CREATE TABLE Linescore (
     PRIMARY KEY (gameId)
 );
 
--- Create the PositionCodes table
 CREATE TABLE PositionCodes (
     PositionCode VARCHAR(1) PRIMARY KEY
 );
-
--- Insert enum values into the PositionCodes table
 INSERT INTO PositionCodes (PositionCode) VALUES ('C');
 INSERT INTO PositionCodes (PositionCode) VALUES ('D');
 INSERT INTO PositionCodes (PositionCode) VALUES ('G');
 INSERT INTO PositionCodes (PositionCode) VALUES ('L');
 INSERT INTO PositionCodes (PositionCode) VALUES ('R');
 
--- Create the Person table
-CREATE TABLE Person (
-    id INT PRIMARY KEY,
-    firstName VARCHAR(100) NOT NULL,
-    lastName VARCHAR(100) NOT NULL
-);
-
--- Create the PersonPosition lookup table
 CREATE TABLE PersonPosition (
     personId INT,
     positionCode VARCHAR(1),
-    seasonId INT
+    seasonId INT,
     PRIMARY KEY (personId, PositionCode, seasonId),
     FOREIGN KEY (personId) REFERENCES Person(id),
     FOREIGN KEY (PositionCode) REFERENCES PositionCodes(PositionCode),
     FOREIGN KEY (seasonId) REFERENCES Season(id)
-);
-
-CREATE TABLE Season (
-    id SERIAL PRIMARY KEY,
-    season VARCHAR(8) NOT NULL
 );
 `
 
