@@ -1,4 +1,4 @@
-const setupSql = `
+export const setupSql = `
 -- Drop tables if they exist
 DROP TABLE IF EXISTS Play CASCADE;
 DROP TABLE IF EXISTS Game CASCADE;
@@ -107,6 +107,16 @@ CREATE TABLE PersonPosition (
     FOREIGN KEY (PositionCode) REFERENCES PositionCodes(PositionCode),
     FOREIGN KEY (seasonId) REFERENCES Season(id)
 );
-`
+`;
 
-export default setupSql;
+export const insertGameQuery = `
+    INSERT INTO Game (
+        id, season, gameType, limitedScoring, gameDate, venue, venueLocation, startTimeUTC,
+        easternUTCOffset, venueUTCOffset, gameState, gameScheduleState, displayPeriod,
+        maxPeriods, shootoutInUse, otInUse, regPeriods
+    ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+    )
+`;
+
+// export default { setupSql, insertGameQuery };
