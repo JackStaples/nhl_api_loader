@@ -119,4 +119,19 @@ export const insertGameQuery = `
     )
 `;
 
+export const getTeamByIdQuery = `
+    SELECT * FROM Team
+    WHERE id = $1
+`;
+
+
+export const insertTeamQuery = `
+      INSERT INTO Team (
+        id, name, abbrev, logo, placeName
+      ) VALUES (
+        $1, $2, $3, $4, $5
+      )
+`;
+    
+
 // export default { setupSql, insertGameQuery };

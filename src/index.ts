@@ -1,4 +1,4 @@
-import { loadGameData, setupDatabase } from './db.js';
+import { loadGameData, loadTeamData, setupDatabase } from './db.js';
 import { fetchPlayByPlayData } from './api/api.js';
 
 
@@ -7,6 +7,7 @@ async function loadDatabase() {
     const res = await fetchPlayByPlayData('2023020204');  
     if (res) {
         loadGameData(res);
+        loadTeamData(res);
     }
 }
 

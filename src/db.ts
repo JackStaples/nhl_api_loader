@@ -1,7 +1,7 @@
 import pg from 'pg';
 import config from './config.js';
-import { setupSql, insertGameQuery } from './sql/scripts.js';
-import { PlayByPlayResponse } from './types/PlayByPlay.types.js';
+import { setupSql, insertGameQuery, getTeamByIdQuery, insertTeamQuery } from './sql/scripts.js';
+import { PlayByPlayResponse, Team } from './types/PlayByPlay.types.js';
 
 const pool = new pg.Pool(config);
 
@@ -48,6 +48,38 @@ export async function loadGameData(game: PlayByPlayResponse) {
         console.log(`Game data inserted for game ${game.id}`);
     } catch (error) {
         console.error('Error inserting game data:', error);
+    }
+}
+
+export async function loadTeamData(game: PlayByPlayResponse) {
+    console.log(`Beginning to load team data for game ${game.id}`);
+    const { awayTeam, homeTeam } = game;
+    await insertTeam(awayTeam);
+    await insertTeam(homeTeam);
+}
+
+async function entityDoesNotExistById(getQuery: string, id: number) {
+    const res = await query(getQuery, [id]);
+    console.log(res.rows);
+    return res.rows.length === 0;
+}
+
+async function insertTeam(team: Team) {
+    if (await entityDoesNotExistById(getTeamByIdQuery, team.id)) {
+        const teamData = [
+            team.id,
+            team.name.default,
+            team.abbrev,
+            team.logo,
+            team.placeName?.default
+        ];
+        try {
+            console.log(`Inserting team data for team ${team.id}`);
+            await query(insertTeamQuery, teamData);
+            console.log(`Team data inserted for team ${team.id}`);
+        } catch (error) {
+            console.error('Error inserting team data:', error);
+        }
     }
 }
 

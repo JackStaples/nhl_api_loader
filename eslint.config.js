@@ -14,6 +14,7 @@ export default [
             'no-extra-semi': 'error',
             'semi-spacing': 'error',
             'semi-style': 'error',
+            'linebreak-style': ['error', 'unix'],
         }
     }
 ];
