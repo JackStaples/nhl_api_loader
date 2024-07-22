@@ -22,5 +22,11 @@
   "dependencies": {
     "pg": "^8.12.0"
   },
-  "type": "module"
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./",
+      "require": "./"
+    }
+  }
 }

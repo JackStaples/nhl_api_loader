@@ -14,6 +14,7 @@ export function query<T>(text: string, params?: T[]) {
  */
 export async function setupDatabase() {
     try {
+        console.log('Setting up database');
         await query(setupSql);
     } catch (error) {
         console.error('Error setting up database:', error);
@@ -60,7 +61,6 @@ export async function loadTeamData(game: PlayByPlayResponse) {
 
 async function entityDoesNotExistById(getQuery: string, id: number) {
     const res = await query(getQuery, [id]);
-    console.log(res.rows);
     return res.rows.length === 0;
 }
 
@@ -83,5 +83,8 @@ async function insertTeam(team: Team) {
     }
 }
 
+export function close() {
+    pool.end();
+}
 
 export default pool;
