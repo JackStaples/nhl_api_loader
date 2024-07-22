@@ -38,8 +38,8 @@ export type ItemName = {
 }
 
 export enum PeriodType {
-    Ot = "OT",
-    Reg = "REG",
+    Ot = 'OT',
+    Reg = 'REG',
 }
 
 export type PeriodDescriptor = {
@@ -95,46 +95,46 @@ export type Details = {
 }
 
 export enum SecondaryReason {
-    TvTimeout = "tv-timeout",
-    VideoReview = "video-review",
-    VisitorTimeout = "visitor-timeout",
+    TvTimeout = 'tv-timeout',
+    VideoReview = 'video-review',
+    VisitorTimeout = 'visitor-timeout',
 }
 
 export enum ShotType {
-    Backhand = "backhand",
-    Deflected = "deflected",
-    Slap = "slap",
-    Snap = "snap",
-    TipIn = "tip-in",
-    Wrist = "wrist",
+    Backhand = 'backhand',
+    Deflected = 'deflected',
+    Slap = 'slap',
+    Snap = 'snap',
+    TipIn = 'tip-in',
+    Wrist = 'wrist',
 }
 
 export enum ZoneCode {
-    D = "D",
-    N = "N",
-    O = "O",
+    D = 'D',
+    N = 'N',
+    O = 'O',
 }
 
 export enum HomeTeamDefendingSide {
-    Left = "left",
-    Right = "right",
+    Left = 'left',
+    Right = 'right',
 }
 
 export enum TypeDescKey {
-    BlockedShot = "blocked-shot",
-    DelayedPenalty = "delayed-penalty",
-    Faceoff = "faceoff",
-    GameEnd = "game-end",
-    Giveaway = "giveaway",
-    Goal = "goal",
-    Hit = "hit",
-    MissedShot = "missed-shot",
-    Penalty = "penalty",
-    PeriodEnd = "period-end",
-    PeriodStart = "period-start",
-    ShotOnGoal = "shot-on-goal",
-    Stoppage = "stoppage",
-    Takeaway = "takeaway",
+    BlockedShot = 'blocked-shot',
+    DelayedPenalty = 'delayed-penalty',
+    Faceoff = 'faceoff',
+    GameEnd = 'game-end',
+    Giveaway = 'giveaway',
+    Goal = 'goal',
+    Hit = 'hit',
+    MissedShot = 'missed-shot',
+    Penalty = 'penalty',
+    PeriodEnd = 'period-end',
+    PeriodStart = 'period-start',
+    ShotOnGoal = 'shot-on-goal',
+    Stoppage = 'stoppage',
+    Takeaway = 'takeaway',
 }
 
 export type RosterSpot = {
@@ -148,11 +148,11 @@ export type RosterSpot = {
 }
 
 export enum PositionCode {
-    C = "C",
-    D = "D",
-    G = "G",
-    L = "L",
-    R = "R",
+    C = 'C',
+    D = 'D',
+    G = 'G',
+    L = 'L',
+    R = 'R',
 }
 
 export type GameInfo = {

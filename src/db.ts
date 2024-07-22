@@ -1,13 +1,13 @@
 import pg from 'pg';
 import config from './config.js';
-import { setupSql, insertGameQuery } from './sql/setupSql.js';
+import { setupSql, insertGameQuery } from './sql/scripts.js';
 import { PlayByPlayResponse } from './types/PlayByPlay.types.js';
 
 const pool = new pg.Pool(config);
 
-export function query(text: string, params?: any[]) {
+export function query<T>(text: string, params?: T[]) {
     return pool.query(text, params);
-};
+}
 
 /**
  * runs the database setup scripts found in ./sql/creation.sql
@@ -40,7 +40,7 @@ export async function loadGameData(game: PlayByPlayResponse) {
         game.shootoutInUse,
         game.otInUse,
         game.regPeriods
-    ]
+    ];
 
     try {
         console.log(`Inserting game data for game ${game.id}`);

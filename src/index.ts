@@ -10,6 +10,6 @@ async function loadDatabase() {
     }
 }
 
-console.log("starting")
+console.log('starting');
 
 loadDatabase();
