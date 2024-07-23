@@ -1,9 +1,14 @@
 import pg from 'pg';
 import config from './config.js';
-import { setupSql, insertGameQuery, getTeamByIdQuery, insertTeamQuery } from './sql/scripts.js';
-import { PlayByPlayResponse, Team } from './types/PlayByPlay.types.js';
+import { setupSql, insertGameQuery, insertTeamQuery, insertPersonQuery, insertPersonPositionQuery, insertSeasonQuery } from './sql/scripts.js';
+import { Person, PlayByPlayResponse, Team } from './types/PlayByPlay.types.js';
 
 const pool = new pg.Pool(config);
+
+const teamMap: Map<number, boolean> = new Map();
+const personMap: Map<number, boolean> = new Map();
+const personPositionMap: Map<number, Map<string, boolean>> = new Map();
+const seasonMap: Map<string, boolean> = new Map();
 
 export function query<T>(text: string, params?: T[]) {
     return pool.query(text, params);
@@ -59,13 +64,10 @@ export async function loadTeamData(game: PlayByPlayResponse) {
     await insertTeam(homeTeam);
 }
 
-async function entityDoesNotExistById(getQuery: string, id: number) {
-    const res = await query(getQuery, [id]);
-    return res.rows.length === 0;
-}
-
 async function insertTeam(team: Team) {
-    if (await entityDoesNotExistById(getTeamByIdQuery, team.id)) {
+    if (
+        !teamMap.has(team.id)
+    ) {
         const teamData = [
             team.id,
             team.name.default,
@@ -77,10 +79,90 @@ async function insertTeam(team: Team) {
             console.log(`Inserting team data for team ${team.id}`);
             await query(insertTeamQuery, teamData);
             console.log(`Team data inserted for team ${team.id}`);
+            teamMap.set(team.id, true);
         } catch (error) {
             console.error('Error inserting team data:', error);
         }
     }
+}
+
+export async function loadSeasonData(season: string) {
+    if (
+        !seasonMap.has(season)
+    ) {
+        const seasonData = [
+            season
+        ];
+        try {
+            console.log(`Inserting season data for season ${season}`);
+            await query(insertSeasonQuery, seasonData);
+            console.log(`Season data inserted for season ${season}`);
+            seasonMap.set(season, true);
+        } catch (error) {
+            console.error('Error inserting season data:', error);
+        }
+    }
+}
+
+
+export async function loadPersonData(game: PlayByPlayResponse) {
+    const { rosterSpots } = game;
+    for (const spot of rosterSpots) {
+        await insertPerson({
+            id: spot.playerId,
+            firstName: spot.firstName,
+            lastName: spot.lastName
+        });
+        await insertPersonPosition(spot.playerId, spot.positionCode, game.season.toString());
+    }
+}
+
+async function insertPerson(person: Person) {
+    if (
+        !personMap.has(person.id)
+    ) {
+        const personData = [
+            person.id,
+            person.firstName.default,
+            person.lastName.default
+        ];
+        try {
+            console.log(`Inserting person data for person ${person.id}`);
+            await query(insertPersonQuery, personData);
+            console.log(`Person data inserted for person ${person.id}`);
+            personMap.set(person.id, true);
+        } catch (error) {
+            console.error('Error inserting person data:', error);
+        }
+    }
+
+}
+
+async function insertPersonPosition(personId: number, position: string, season: string) {
+    if (
+        !personPositionMap.has(personId)
+    ) {
+        personPositionMap.set(personId, new Map());
+    }
+
+    if (
+        !personPositionMap.get(personId)?.has(position)
+    ) {
+        const personPositionData = [
+            personId,
+            position,
+            season
+        ];
+        try {
+            console.log(`Inserting person position data for person ${personId}`);
+            await query(insertPersonPositionQuery, personPositionData);
+            console.log(`Person position data inserted for person ${personId}`);
+            personPositionMap.get(personId)?.set(position, true);
+        } catch (error) {
+            console.error('Error inserting person position data:', error);
+        }
+    }
+
 }
 
 export function close() {

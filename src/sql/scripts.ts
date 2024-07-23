@@ -47,7 +47,7 @@ CREATE TABLE Person (
 
 CREATE TABLE Season (
     id SERIAL PRIMARY KEY,
-    season VARCHAR(8) NOT NULL
+    seasonName VARCHAR(8) NOT NULL
 );
 
 CREATE TABLE Period (
@@ -132,6 +132,15 @@ export const insertTeamQuery = `
         $1, $2, $3, $4, $5
       )
 `;
-    
 
-// export default { setupSql, insertGameQuery };
+export const insertPersonQuery = `
+INSERT INTO Person (id, firstName, lastName)
+VALUES ($1, $2, $3)
+`;
+    
+export const insertPersonPositionQuery = `
+        INSERT INTO PersonPosition (personId, positionCode, seasonId)
+        VALUES ($1, $2, (SELECT id FROM Season where seasonName = $3))
+      `;
+
+export const insertSeasonQuery = 'INSERT INTO Season (seasonName) VALUES ($1)';
