@@ -51,15 +51,14 @@ CREATE TABLE Season (
 );
 
 CREATE TABLE Period (
-    id SERIAL PRIMARY KEY,
-    number INT NOT NULL,
+    number INT PRIMARY KEY,
     periodType VARCHAR(10) NOT NULL
 );
 
 CREATE TABLE Play (
     id INT PRIMARY KEY,
     gameId INT REFERENCES Game(id),
-    periodId INT REFERENCES Period(id),
+    periodNumber INT REFERENCES Period(number),
     timeInPeriod VARCHAR(10) NOT NULL,
     timeRemaining VARCHAR(10) NOT NULL,
     situationCode VARCHAR(50) NOT NULL,
@@ -110,12 +109,11 @@ CREATE TABLE PersonPosition (
 `;
 
 export const insertGameQuery = `
-    INSERT INTO Game (
-        id, season, gameType, limitedScoring, gameDate, venue, venueLocation, startTimeUTC,
+    INSERT INTO Game (id, season, gameType, limitedScoring, gameDate, venue, venueLocation, startTimeUTC,
         easternUTCOffset, venueUTCOffset, gameState, gameScheduleState, displayPeriod,
         maxPeriods, shootoutInUse, otInUse, regPeriods
     ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+        $insert
     )
 `;
 
@@ -144,3 +142,16 @@ export const insertPersonPositionQuery = `
       `;
 
 export const insertSeasonQuery = 'INSERT INTO Season (seasonName) VALUES ($1)';
+
+export const insertPlayQuery = `
+      INSERT INTO Play (
+        id, gameId, periodNumber, timeInPeriod, timeRemaining, situationCode,
+        homeTeamDefendingSide, typeCode, typeDescKey, sortOrder, details
+      ) VALUES
+        $insert;
+    `;
+
+export const insertPeriodQuery = `
+        INSERT INTO Period (number, periodType)
+        VALUES ($1, $2)
+    `;

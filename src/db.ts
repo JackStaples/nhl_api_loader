@@ -1,7 +1,7 @@
 import pg from 'pg';
 import config from './config.js';
-import { setupSql, insertGameQuery, insertTeamQuery, insertPersonQuery, insertPersonPositionQuery, insertSeasonQuery } from './sql/scripts.js';
-import { Person, PlayByPlayResponse, Team } from './types/PlayByPlay.types.js';
+import { setupSql, insertGameQuery, insertTeamQuery, insertPersonQuery, insertPersonPositionQuery, insertSeasonQuery, insertPlayQuery, insertPeriodQuery } from './sql/scripts.js';
+import { Person, Play, PlayByPlayResponse, Team } from './types/PlayByPlay.types.js';
 
 const pool = new pg.Pool(config);
 
@@ -9,6 +9,7 @@ const teamMap: Map<number, boolean> = new Map();
 const personMap: Map<number, boolean> = new Map();
 const personPositionMap: Map<number, Map<string, boolean>> = new Map();
 const seasonMap: Map<string, boolean> = new Map();
+const periodMap: Map<number, boolean> = new Map();
 
 export function query<T>(text: string, params?: T[]) {
     return pool.query(text, params);
@@ -28,33 +29,21 @@ export async function setupDatabase() {
 
 export async function loadGameData(game: PlayByPlayResponse) {
     console.log(`Beginning to load game data for game ${game.id}`);
-    const gameData = [
-        game.id,
-        game.season,
-        game.gameType,
-        game.limitedScoring,
-        game.gameDate,
-        game.venue.default,
-        game.venueLocation.default,
-        game.startTimeUTC,
-        game.easternUTCOffset,
-        game.venueUTCOffset,
-        game.gameState,
-        game.gameScheduleState,
-        game.displayPeriod,
-        game.maxPeriods,
-        game.shootoutInUse,
-        game.otInUse,
-        game.regPeriods
-    ];
+    const insertString = getInsertGameString(game);
+    const query = insertGameQuery.replace('$insert', insertString);
 
     try {
         console.log(`Inserting game data for game ${game.id}`);
-        await query(insertGameQuery, gameData);
+        console.log(query);
+        await pool.query(query);
         console.log(`Game data inserted for game ${game.id}`);
     } catch (error) {
         console.error('Error inserting game data:', error);
     }
+}
+
+function getInsertGameString(game: PlayByPlayResponse) {
+    return `${game.id}, ${game.season}, ${game.gameType}, ${game.limitedScoring}, '${game.gameDate}', '${game.venue.default}', '${game.venueLocation.default}', '${game.startTimeUTC}', '${game.easternUTCOffset}', '${game.venueUTCOffset}', '${game.gameState}', '${game.gameScheduleState}', ${game.displayPeriod}, ${game.maxPeriods}, ${game.shootoutInUse}, ${game.otInUse}, ${game.regPeriods}`;
 }
 
 export async function loadTeamData(game: PlayByPlayResponse) {
@@ -163,6 +152,46 @@ async function insertPersonPosition(personId: number, position: string, season: 
         }
     }
 
+}
+
+export async function loadPlaysData(game: PlayByPlayResponse) {
+    const { plays } = game;
+    const insertionStrings: string[] = [];
+    for (const play of plays ) {
+        await insertPeriod(play);
+        insertionStrings.push(getInsertPlayString(play, game.id));
+    }
+    const insertString = insertionStrings.join(',\n');
+    const query = insertPlayQuery.replace('$insert', insertString);
+    console.log(query);
+    try {
+        console.log(`Inserting play data for game ${game.id}`);
+        await pool.query(query);
+        console.log(`Play data inserted for game ${game.id}`);
+    } catch (error) {
+        console.error('Error inserting play data:', error);
+    }
+}
+
+async function insertPeriod(play: Play) {
+    if (!periodMap.has(play.periodDescriptor.number)) {
+        const periodData = [
+            play.periodDescriptor.number,
+            play.periodDescriptor.periodType
+        ];
+        try {
+            console.log(`Inserting period data for period ${play.periodDescriptor.number}`);
+            await query(insertPeriodQuery, periodData);
+            console.log(`Period data inserted for period ${play.periodDescriptor.number}`);
+            periodMap.set(play.periodDescriptor.number, true);
+        } catch (error) {
+            console.error('Error inserting period data:', error);
+        }
+    }
+}
+
+function getInsertPlayString(play: Play, gameId: number) {
+    return `(${play.eventId}, ${gameId}, ${play.periodDescriptor.number}, '${play.timeInPeriod}', '${play.timeRemaining}', '${play.situationCode}', '${play.homeTeamDefendingSide}', ${play.typeCode}, '${play.typeDescKey}', ${play.sortOrder}, '${play.details ? JSON.stringify(play.details):'{}'}')`;
 }
 
 export function close() {
