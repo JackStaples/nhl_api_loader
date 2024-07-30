@@ -1,6 +1,6 @@
 import pg from 'pg';
 import config from './config.js';
-import { setupSql, insertGameQuery, insertTeamQuery, insertPersonQuery, insertPersonPositionQuery, insertSeasonQuery, insertPlayQuery, insertPeriodQuery, insterRosterSpotQuery } from './sql/scripts.js';
+import { setupSql, insertGameQuery, insertTeamQuery, insertPersonQuery, insertPersonPositionQuery, insertSeasonQuery, insertPlayQuery, insertPeriodQuery, insterRosterSpotQuery, createPlayTypesViewQuery } from './sql/scripts.js';
 import { Person, Play, PlayByPlayResponse, Team } from './types/PlayByPlay.types.js';
 
 const pool = new pg.Pool(config);
@@ -210,6 +210,16 @@ export async function loadRosterSpots(game: PlayByPlayResponse) {
         } catch (error) {
             console.error('Error inserting roster spot data:', error);
         }
+    }
+}
+
+export async function createPlayTypesView() {
+    try {
+        console.log('Creating PlayTypes view');
+        await query(createPlayTypesViewQuery);
+        console.log('PlayTypes view created');
+    } catch (error) {
+        console.error('Error creating PlayTypes view:', error);
     }
 }
 

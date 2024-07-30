@@ -9,6 +9,7 @@ DROP TABLE IF EXISTS PersonPosition CASCADE;
 DROP TABLE IF EXISTS Person CASCADE;
 DROP TABLE IF EXISTS PositionCodes CASCADE;
 DROP TABLE IF EXISTS Season CASCADE;
+DROP MATERIALIZED VIEW IF EXISTS PlayTypes;
 
 CREATE TABLE Game (
     id INT PRIMARY KEY,
@@ -148,3 +149,8 @@ export const insterRosterSpotQuery = `
         INSERT INTO RosterSpot (teamId, playerId, gameId, positionCode)
         VALUES ($1, $2, $3, $4)
     `;
+
+export const createPlayTypesViewQuery = `    
+CREATE MATERIALIZED VIEW playtypes AS
+SELECT DISTINCT typeCode, typeDescKey
+FROM Play;`;
