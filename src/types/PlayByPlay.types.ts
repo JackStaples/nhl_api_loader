@@ -185,11 +185,6 @@ export type GameReports = {
     toiHome:           string;
 }
 
-export type Linescore = {
-    byPeriod: ByPeriod[];
-    totals:   Totals;
-}
-
 export type ByPeriod = {
     periodDescriptor: PeriodDescriptor;
     away:             number;

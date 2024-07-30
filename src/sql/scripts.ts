@@ -5,7 +5,6 @@ DROP TABLE IF EXISTS Game CASCADE;
 DROP TABLE IF EXISTS Team CASCADE;
 DROP TABLE IF EXISTS Period CASCADE;
 DROP TABLE IF EXISTS RosterSpot CASCADE;
-DROP TABLE IF EXISTS Linescore CASCADE;
 DROP TABLE IF EXISTS PersonPosition CASCADE;
 DROP TABLE IF EXISTS Person CASCADE;
 DROP TABLE IF EXISTS PositionCodes CASCADE;
@@ -75,13 +74,6 @@ CREATE TABLE RosterSpot (
     gameId int References Game(id),
     positionCode VARCHAR(2) NOT NULL,
     PRIMARY KEY (teamId, playerId, gameId)
-);
-
-CREATE TABLE Linescore (
-    gameId INT REFERENCES Game(id),
-    byPeriod JSONB NOT NULL,
-    totals JSONB NOT NULL,
-    PRIMARY KEY (gameId)
 );
 
 CREATE TABLE PositionCodes (
