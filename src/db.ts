@@ -1,6 +1,6 @@
 import pg from 'pg';
 import config from './config.js';
-import { setupSql, insertGameQuery, insertTeamQuery, insertPersonQuery, insertPersonPositionQuery, insertSeasonQuery, insertPlayQuery, insertPeriodQuery } from './sql/scripts.js';
+import { setupSql, insertGameQuery, insertTeamQuery, insertPersonQuery, insertPersonPositionQuery, insertSeasonQuery, insertPlayQuery, insertPeriodQuery, insterRosterSpotQuery } from './sql/scripts.js';
 import { Person, Play, PlayByPlayResponse, Team } from './types/PlayByPlay.types.js';
 
 const pool = new pg.Pool(config);
@@ -192,6 +192,25 @@ async function insertPeriod(play: Play) {
 
 function getInsertPlayString(play: Play, gameId: number) {
     return `(${play.eventId}, ${gameId}, ${play.periodDescriptor.number}, '${play.timeInPeriod}', '${play.timeRemaining}', '${play.situationCode}', '${play.homeTeamDefendingSide}', ${play.typeCode}, '${play.typeDescKey}', ${play.sortOrder}, '${play.details ? JSON.stringify(play.details):'{}'}')`;
+}
+
+export async function loadRosterSpots(game: PlayByPlayResponse) {
+    const { rosterSpots } = game;
+    for (const spot of rosterSpots) {
+        const rosterSpotData = [
+            spot.teamId,
+            spot.playerId,
+            game.id,
+            spot.positionCode
+        ];
+        try {
+            console.log(`Inserting roster spot data for player ${spot.playerId}`);
+            await query(insterRosterSpotQuery, rosterSpotData);
+            console.log(`Roster spot data inserted for player ${spot.playerId}`);
+        } catch (error) {
+            console.error('Error inserting roster spot data:', error);
+        }
+    }
 }
 
 export function close() {

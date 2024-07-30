@@ -73,11 +73,7 @@ CREATE TABLE RosterSpot (
     teamId INT REFERENCES Team(id),
     playerId INT REFERENCES Person(id),
     gameId int References Game(id),
-    firstName VARCHAR(255) NOT NULL,
-    lastName VARCHAR(255) NOT NULL,
-    sweaterNumber INT NOT NULL,
     positionCode VARCHAR(2) NOT NULL,
-    headshot VARCHAR(255),
     PRIMARY KEY (teamId, playerId, gameId)
 );
 
@@ -154,4 +150,9 @@ export const insertPlayQuery = `
 export const insertPeriodQuery = `
         INSERT INTO Period (number, periodType)
         VALUES ($1, $2)
+    `;
+
+export const insterRosterSpotQuery = `
+        INSERT INTO RosterSpot (teamId, playerId, gameId, positionCode)
+        VALUES ($1, $2, $3, $4)
     `;
