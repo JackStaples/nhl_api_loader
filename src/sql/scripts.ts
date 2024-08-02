@@ -167,8 +167,8 @@ FROM Play;`;
 export const createStatsMaterializedViewsQuery = `
 DROP MATERIALIZED VIEW IF EXISTS public.seasonStats;
 
-DROP MATERIALIZED VIEW IF EXISTS public.goals;
-CREATE MATERIALIZED VIEW IF NOT EXISTS public.goals
+DROP MATERIALIZED VIEW IF EXISTS public.seasonGoals;
+CREATE MATERIALIZED VIEW IF NOT EXISTS public.seasonGoals
 TABLESPACE pg_default
 AS
  SELECT CAST(play.details -> 'scoringPlayerId' AS INTEGER) AS personid,
@@ -180,8 +180,8 @@ AS
   GROUP BY CAST(play.details -> 'scoringPlayerId' AS INTEGER), game.season
 WITH DATA;
 
-DROP MATERIALIZED VIEW IF EXISTS public.primaryAssists;
-CREATE MATERIALIZED VIEW IF NOT EXISTS public.primaryAssists
+DROP MATERIALIZED VIEW IF EXISTS public.seasonPrimaryAssists;
+CREATE MATERIALIZED VIEW IF NOT EXISTS public.seasonPrimaryAssists
 TABLESPACE pg_default
 AS
  SELECT CAST(play.details -> 'assist1PlayerId' AS INTEGER) AS personid,
@@ -193,8 +193,8 @@ AS
   GROUP BY CAST(play.details -> 'assist1PlayerId' AS INTEGER), game.season
 WITH DATA;
 
-DROP MATERIALIZED VIEW IF EXISTS public.secondaryAssists;
-CREATE MATERIALIZED VIEW IF NOT EXISTS public.secondaryAssists
+DROP MATERIALIZED VIEW IF EXISTS public.seasonSecondaryAssists;
+CREATE MATERIALIZED VIEW IF NOT EXISTS public.seasonSecondaryAssists
 TABLESPACE pg_default
 AS
  SELECT CAST(play.details -> 'assist2PlayerId' AS INTEGER) AS personid,
@@ -206,9 +206,8 @@ AS
   GROUP BY CAST(play.details -> 'assist2PlayerId' AS INTEGER), game.season
 WITH DATA;
 
-DROP MATERIALIZED VIEW IF EXISTS public.shots;
-
-CREATE MATERIALIZED VIEW IF NOT EXISTS public.shots
+DROP MATERIALIZED VIEW IF EXISTS public.seasonShots;
+CREATE MATERIALIZED VIEW IF NOT EXISTS public.seasonShots
 TABLESPACE pg_default
 AS
  SELECT CAST(play.details -> 'shootingPlayerId' AS INTEGER) AS personid,
@@ -220,8 +219,8 @@ AS
   GROUP BY CAST(play.details -> 'shootingPlayerId' AS INTEGER), game.season
 WITH DATA;
 
-DROP MATERIALIZED VIEW IF EXISTS public.hits;
-CREATE MATERIALIZED VIEW IF NOT EXISTS public.hits
+DROP MATERIALIZED VIEW IF EXISTS public.seasonhits;
+CREATE MATERIALIZED VIEW IF NOT EXISTS public.seasonhits
 TABLESPACE pg_default
 AS
  SELECT CAST(play.details -> 'hittingPlayerId' AS INTEGER) AS personid,
@@ -233,6 +232,19 @@ AS
   GROUP BY CAST(play.details -> 'hittingPlayerId' AS INTEGER), game.season
 WITH DATA;
 
+DROP MATERIALIZED VIEW IF EXISTS public.seasonBlockedShots;
+CREATE MATERIALIZED VIEW IF NOT EXISTS public.seasonBlockedShots
+TABLESPACE pg_default
+AS
+ SELECT CAST(play.details -> 'blockingPlayerId' AS INTEGER) AS personid,
+    count(1) AS blocks,
+    game.season
+   FROM play
+     JOIN game ON game.id = play.gameid
+  WHERE play.typecode = 508
+  GROUP BY CAST(play.details -> 'blockingPlayerId' AS INTEGER), game.season
+WITH DATA;
+
 CREATE MATERIALIZED VIEW IF NOT EXISTS public.seasonStats
 TABLESPACE pg_default
 AS
@@ -240,29 +252,68 @@ SELECT
 	playerSeasons.playerId AS personId,
 	playerSeasons.season,
 	COALESCE(goals, 0) AS goals,
-	COALESCE(primaryAssists.assists, 0) + COALESCE(secondaryAssists.assists, 0) AS assists,
-	COALESCE(primaryAssists.assists, 0) AS primaryAssists,
-	COALESCE(secondaryAssists.assists, 0) AS secondaryAssists,
-	COALESCE(shots.shots, 0) AS shots,
-	COALESCE(hits.hits, 0) AS hits
+	COALESCE(seasonPrimaryAssists.assists, 0) + COALESCE(seasonSecondaryAssists.assists, 0) AS assists,
+	COALESCE(seasonPrimaryAssists.assists, 0) AS primaryAssists,
+	COALESCE(seasonSecondaryAssists.assists, 0) AS secondaryAssists,
+	COALESCE(seasonShots.shots, 0) AS shots,
+	COALESCE(seasonhits.hits, 0) AS hits,
+	COALESCE(seasonBlockedShots.blocks, 0) AS blockedShots
 FROM ( 
 	SELECT DISTINCT season, playerId FROM game
 	INNER JOIN rosterspot
 	ON rosterspot.gameid = game.id
 ) AS playerSeasons
-LEFT JOIN goals
-	ON playerSeasons.playerId = goals.personid
-	AND playerSeasons.season = goals.season 
-LEFT JOIN primaryAssists
-	ON playerSeasons.playerId = primaryAssists.personId 
-	AND playerSeasons.season = primaryAssists.season 
-LEFT JOIN secondaryAssists
-	ON playerSeasons.playerId = secondaryAssists.personId 
-	AND playerSeasons.season = secondaryAssists.season 
-LEFT JOIN shots
-	ON playerSeasons.playerId = shots.personId 
-	AND playerSeasons.season = shots.season
-LEFT JOIN hits
-	ON playerSeasons.playerId = hits.personId 
-	AND playerSeasons.season = hits.season;
+LEFT JOIN seasonGoals
+	ON playerSeasons.playerId = seasonGoals.personid
+	AND playerSeasons.season = seasonGoals.season 
+LEFT JOIN seasonPrimaryAssists
+	ON playerSeasons.playerId = seasonPrimaryAssists.personId 
+	AND playerSeasons.season = seasonPrimaryAssists.season 
+LEFT JOIN seasonSecondaryAssists
+	ON playerSeasons.playerId = seasonSecondaryAssists.personId 
+	AND playerSeasons.season = seasonSecondaryAssists.season 
+LEFT JOIN seasonShots
+	ON playerSeasons.playerId = seasonShots.personId 
+	AND playerSeasons.season = seasonShots.season
+LEFT JOIN seasonhits
+	ON playerSeasons.playerId = seasonhits.personId 
+	AND playerSeasons.season = seasonhits.season
+LEFT JOIN seasonBlockedShots
+	ON playerSeasons.playerId = seasonBlockedShots.personId 
+	AND playerSeasons.season = seasonBlockedShots.season;
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS public.seasonFantasyStats
+TABLESPACE pg_default
+AS
+SELECT 
+	playerSeasons.playerId AS personId,
+	playerSeasons.season,
+	COALESCE(goals, 0) * 6 AS goalPoints,
+	(COALESCE(seasonPrimaryAssists.assists, 0) + COALESCE(seasonSecondaryAssists.assists, 0)) * 4 AS assistPoints,
+	COALESCE(seasonShots.shots, 0) AS shotPoints,
+	COALESCE(seasonhits.hits, 0) * 0.5 AS hitpoints,
+	COALESCE(seasonBlockedShots.blocks, 0) AS blockedShotPoints
+FROM ( 
+	SELECT DISTINCT season, playerId FROM game
+	INNER JOIN rosterspot
+	ON rosterspot.gameid = game.id
+) AS playerSeasons
+LEFT JOIN seasonGoals
+	ON playerSeasons.playerId = seasonGoals.personid
+	AND playerSeasons.season = seasonGoals.season 
+LEFT JOIN seasonPrimaryAssists
+	ON playerSeasons.playerId = seasonPrimaryAssists.personId 
+	AND playerSeasons.season = seasonPrimaryAssists.season 
+LEFT JOIN seasonSecondaryAssists
+	ON playerSeasons.playerId = seasonSecondaryAssists.personId 
+	AND playerSeasons.season = seasonSecondaryAssists.season 
+LEFT JOIN seasonShots
+	ON playerSeasons.playerId = seasonShots.personId 
+	AND playerSeasons.season = seasonShots.season
+LEFT JOIN seasonhits
+	ON playerSeasons.playerId = seasonhits.personId 
+	AND playerSeasons.season = seasonhits.season
+LEFT JOIN seasonBlockedShots
+	ON playerSeasons.playerId = seasonBlockedShots.personId 
+	AND playerSeasons.season = seasonBlockedShots.season;
 `;
