@@ -30,13 +30,18 @@ async function loadDatabase() {
             const schedule = await fetchTeamSchedule(triCode, seasonString);
             if (!schedule) continue;
             for (const game of schedule.games) {
+                if (game.gameType !== 2) continue;
                 gameMap.set(game.id, true);
             }
         }
 
+        let i = 1;
         for (const gameId of gameMap.keys()) {
+            console.log(`Loading data for game ${i} of ${gameMap.size}`);
             const game = await fetchPlayByPlayData(String(gameId));  
             if (game) await loadGame(game);
+            console.log(`Loaded data for game ${i++} of ${gameMap.size}`);
+
         }
 
         

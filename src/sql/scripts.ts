@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS Person CASCADE;
 DROP TABLE IF EXISTS PositionCodes CASCADE;
 DROP TABLE IF EXISTS Season CASCADE;
 DROP MATERIALIZED VIEW IF EXISTS PlayTypes;
+DROP SEQUENCE IF EXISTS play_id_seq CASCADE;
 
 CREATE TABLE Game (
     id INT PRIMARY KEY,
@@ -55,8 +56,15 @@ CREATE TABLE Period (
     periodType VARCHAR(10) NOT NULL
 );
 
+CREATE SEQUENCE play_id_seq
+    START 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
 CREATE TABLE Play (
-    id INT PRIMARY KEY,
+    id INT PRIMARY KEY DEFAULT nextval('play_id_seq'),
     gameId INT REFERENCES Game(id),
     periodNumber INT REFERENCES Period(number),
     timeInPeriod VARCHAR(10) NOT NULL,
@@ -68,6 +76,7 @@ CREATE TABLE Play (
     sortOrder INT NOT NULL,
     details JSONB
 );
+
 
 CREATE TABLE RosterSpot (
     teamId INT REFERENCES Team(id),
@@ -134,7 +143,7 @@ export const insertSeasonQuery = 'INSERT INTO Season (seasonName) VALUES ($1)';
 
 export const insertPlayQuery = `
       INSERT INTO Play (
-        id, gameId, periodNumber, timeInPeriod, timeRemaining, situationCode,
+        gameId, periodNumber, timeInPeriod, timeRemaining, situationCode,
         homeTeamDefendingSide, typeCode, typeDescKey, sortOrder, details
       ) VALUES
         $insert;
@@ -156,6 +165,8 @@ SELECT DISTINCT typeCode, typeDescKey
 FROM Play;`;
 
 export const createStatsMaterializedViewsQuery = `
+DROP MATERIALIZED VIEW IF EXISTS public.seasonStats;
+
 DROP MATERIALIZED VIEW IF EXISTS public.goals;
 CREATE MATERIALIZED VIEW IF NOT EXISTS public.goals
 TABLESPACE pg_default
@@ -222,7 +233,6 @@ AS
   GROUP BY CAST(play.details -> 'hittingPlayerId' AS INTEGER), game.season
 WITH DATA;
 
-DROP MATERIALIZED VIEW IF EXISTS public.seasonStats;
 CREATE MATERIALIZED VIEW IF NOT EXISTS public.seasonStats
 TABLESPACE pg_default
 AS

@@ -189,10 +189,11 @@ async function insertPeriod(play: Play) {
 }
 
 function getInsertPlayString(play: Play, gameId: number) {
-    return `(${play.eventId}, ${gameId}, ${play.periodDescriptor.number}, '${play.timeInPeriod}', '${play.timeRemaining}', '${play.situationCode}', '${play.homeTeamDefendingSide}', ${play.typeCode}, '${play.typeDescKey}', ${play.sortOrder}, '${play.details ? JSON.stringify(play.details):'{}'}')`;
+    return `(${gameId}, ${play.periodDescriptor.number}, '${play.timeInPeriod}', '${play.timeRemaining}', '${play.situationCode}', '${play.homeTeamDefendingSide}', ${play.typeCode}, '${play.typeDescKey}', ${play.sortOrder}, '${play.details ? JSON.stringify(play.details):'{}'}')`;
 }
 
 export async function loadRosterSpots(game: PlayByPlayResponse) {
+    console.log('Inserting roster spot data for players');
     const { rosterSpots } = game;
     for (const spot of rosterSpots) {
         const rosterSpotData = [
@@ -202,13 +203,12 @@ export async function loadRosterSpots(game: PlayByPlayResponse) {
             spot.positionCode
         ];
         try {
-            console.log(`Inserting roster spot data for player ${spot.playerId}`);
             await query(insterRosterSpotQuery, rosterSpotData);
-            console.log(`Roster spot data inserted for player ${spot.playerId}`);
         } catch (error) {
             console.error('Error inserting roster spot data:', error);
         }
     }
+    console.log('Roster spot data inserted for player');
 }
 
 export async function createPlayTypesView() {
