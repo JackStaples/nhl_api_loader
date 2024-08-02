@@ -1,5 +1,5 @@
 export interface TeamsResponse {
-    team:  Team[];
+    data:  Team[];
     total: number;
 }
 

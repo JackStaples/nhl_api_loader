@@ -3,6 +3,7 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import type { PlayByPlayResponse } from '../types/PlayByPlay.types.js';
 import { TeamsResponse } from '../types/Teams.types.js';
+import { ScheduleResponse } from '../types/Schedule.types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -74,5 +75,31 @@ export async function fetchTeams(): Promise<TeamsResponse | null> {
         console.error('Error fetching data:', error);
     }
   
+    return null;
+}
+
+export async function fetchTeamSchedule(triCode: string, season: string): Promise<ScheduleResponse | null> {
+    // check if we have the data cached
+    if (fs.existsSync(`${cacheDir}/${triCode}-${season}.json`)) {
+        console.log(`Found cached schedule data for team ${triCode} season ${season}`);
+        const data = fs.readFileSync(`${cacheDir}/${triCode}-${season}.json`, 'utf-8');
+        
+        console.log(`Returning cached schedule data for team ${triCode} season ${season}`);
+        return JSON.parse(data);
+    }
+
+    const url = `https://api-web.nhle.com/v1/club-schedule-season/${triCode}/${season}`;
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        fs.writeFileSync(`${cacheDir}/${triCode}-${season}.json`, JSON.stringify(data, null, 2));
+  
+        if (data) {
+            return data as ScheduleResponse;
+        }
+    } catch (error) {
+        console.error('Error fetching data:', error);
+    }
+
     return null;
 }

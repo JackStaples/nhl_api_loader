@@ -1,10 +1,10 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { close, loadPlaysData, loadGameData, loadPersonData, loadSeasonData, loadTeamData, setupDatabase, loadRosterSpots, createPlayTypesView, createStatsMaterializedViews } from './db.js';
-import { fetchPlayByPlayData, fetchTeams } from './api/api.js';
+import { fetchPlayByPlayData, fetchTeams, fetchTeamSchedule } from './api/api.js';
 import { PlayByPlayResponse } from './types/PlayByPlay.types.js';
 
 // const seasons = ['2020', '2021', '2022', '2023', '2024'];
-const seasons = ['2023'];
+const seasons = [2023];
 
 async function loadGame(game: PlayByPlayResponse) {
     await loadGameData(game);
@@ -22,8 +22,24 @@ async function loadDatabase() {
     if (!teams) return;
 
     for (const season of seasons) {
-        const res = await fetchPlayByPlayData(`${season}020201`);  
-        if (res) await loadGame(res);
+        const gameMap = new Map<number, boolean>();
+
+        for (const team of teams.data) {
+            const { triCode } = team;
+            const seasonString = `${season}${season+1}`;
+            const schedule = await fetchTeamSchedule(triCode, seasonString);
+            if (!schedule) continue;
+            for (const game of schedule.games) {
+                gameMap.set(game.id, true);
+            }
+        }
+
+        for (const gameId of gameMap.keys()) {
+            const game = await fetchPlayByPlayData(String(gameId));  
+            if (game) await loadGame(game);
+        }
+
+        
     }
     
     await createPlayTypesView();
