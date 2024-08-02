@@ -166,6 +166,7 @@ FROM Play;`;
 
 export const createStatsMaterializedViewsQuery = `
 DROP MATERIALIZED VIEW IF EXISTS public.seasonStats;
+DROP MATERIALIZED VIEW IF EXISTS public.seasonFantasyStats;
 
 DROP MATERIALIZED VIEW IF EXISTS public.seasonGoals;
 CREATE MATERIALIZED VIEW IF NOT EXISTS public.seasonGoals
@@ -292,7 +293,12 @@ SELECT
 	(COALESCE(seasonPrimaryAssists.assists, 0) + COALESCE(seasonSecondaryAssists.assists, 0)) * 4 AS assistPoints,
 	COALESCE(seasonShots.shots, 0) AS shotPoints,
 	COALESCE(seasonhits.hits, 0) * 0.5 AS hitpoints,
-	COALESCE(seasonBlockedShots.blocks, 0) AS blockedShotPoints
+	COALESCE(seasonBlockedShots.blocks, 0) AS blockedShotPoints,
+	(COALESCE(goals, 0) * 6) + 
+	((COALESCE(seasonPrimaryAssists.assists, 0) + COALESCE(seasonSecondaryAssists.assists, 0)) * 4) + 
+	COALESCE(seasonShots.shots, 0) +
+	(COALESCE(seasonhits.hits, 0) * 0.5) +
+	COALESCE(seasonBlockedShots.blocks, 0) AS totalPoints
 FROM ( 
 	SELECT DISTINCT season, playerId FROM game
 	INNER JOIN rosterspot
@@ -315,5 +321,4 @@ LEFT JOIN seasonhits
 	AND playerSeasons.season = seasonhits.season
 LEFT JOIN seasonBlockedShots
 	ON playerSeasons.playerId = seasonBlockedShots.personId 
-	AND playerSeasons.season = seasonBlockedShots.season;
-`;
+	AND playerSeasons.season = seasonBlockedShots.season;`;
