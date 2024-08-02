@@ -2,6 +2,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import type { PlayByPlayResponse } from '../types/PlayByPlay.types.js';
+import { TeamsResponse } from '../types/Teams.types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,6 +34,40 @@ export async function fetchPlayByPlayData(game: string): Promise<PlayByPlayRespo
             fs.writeFileSync(`${cacheDir}/${game}.json`, JSON.stringify(data, null, 2));
 
             return data as PlayByPlayResponse;
+        }
+  
+    } catch (error) {
+        console.error('Error fetching data:', error);
+    }
+  
+    return null;
+}
+
+export async function fetchTeams(): Promise<TeamsResponse | null> {
+    console.log('Fetching team data');
+    
+    // check if we have the data cached
+    if (fs.existsSync(`${cacheDir}/teams.json`)) {
+        console.log('Found cached team data');
+        const data = fs.readFileSync(`${cacheDir}/teams.json`, 'utf-8');
+        
+        console.log('Returning cached team data');
+        return JSON.parse(data) as TeamsResponse;
+    }
+    
+    console.log('No cached team data found, fetching from API');
+    const url = 'https://api.nhle.com/stats/rest/en/team';
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+  
+        if (data) {
+            console.log('Fetched team data');
+            // if we have data write it to the cache folder
+            console.log('Writing team data to cache');
+            fs.writeFileSync(`${cacheDir}/teams.json`, JSON.stringify(data, null, 2));
+
+            return data as TeamsResponse;
         }
   
     } catch (error) {

@@ -34,7 +34,6 @@ export async function loadGameData(game: PlayByPlayResponse) {
 
     try {
         console.log(`Inserting game data for game ${game.id}`);
-        console.log(query);
         await pool.query(query);
         console.log(`Game data inserted for game ${game.id}`);
     } catch (error) {
@@ -163,7 +162,6 @@ export async function loadPlaysData(game: PlayByPlayResponse) {
     }
     const insertString = insertionStrings.join(',\n');
     const query = insertPlayQuery.replace('$insert', insertString);
-    console.log(query);
     try {
         console.log(`Inserting play data for game ${game.id}`);
         await pool.query(query);
