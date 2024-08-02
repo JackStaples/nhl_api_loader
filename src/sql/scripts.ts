@@ -154,3 +154,105 @@ export const createPlayTypesViewQuery = `
 CREATE MATERIALIZED VIEW playtypes AS
 SELECT DISTINCT typeCode, typeDescKey
 FROM Play;`;
+
+export const createStatsMaterializedViewsQuery = `
+DROP MATERIALIZED VIEW IF EXISTS public.goals;
+CREATE MATERIALIZED VIEW IF NOT EXISTS public.goals
+TABLESPACE pg_default
+AS
+ SELECT CAST(play.details -> 'scoringPlayerId' AS INTEGER) AS personid,
+    count(1) AS goals,
+    game.season
+   FROM play
+     JOIN game ON game.id = play.gameid
+  WHERE play.typecode = 505
+  GROUP BY CAST(play.details -> 'scoringPlayerId' AS INTEGER), game.season
+WITH DATA;
+
+DROP MATERIALIZED VIEW IF EXISTS public.primaryAssists;
+CREATE MATERIALIZED VIEW IF NOT EXISTS public.primaryAssists
+TABLESPACE pg_default
+AS
+ SELECT CAST(play.details -> 'assist1PlayerId' AS INTEGER) AS personid,
+    count(1) AS assists,
+    game.season
+   FROM play
+     JOIN game ON game.id = play.gameid
+  WHERE play.typecode = 505
+  GROUP BY CAST(play.details -> 'assist1PlayerId' AS INTEGER), game.season
+WITH DATA;
+
+DROP MATERIALIZED VIEW IF EXISTS public.secondaryAssists;
+CREATE MATERIALIZED VIEW IF NOT EXISTS public.secondaryAssists
+TABLESPACE pg_default
+AS
+ SELECT CAST(play.details -> 'assist2PlayerId' AS INTEGER) AS personid,
+    count(1) AS assists,
+    game.season
+   FROM play
+     JOIN game ON game.id = play.gameid
+  WHERE play.typecode = 505
+  GROUP BY CAST(play.details -> 'assist2PlayerId' AS INTEGER), game.season
+WITH DATA;
+
+DROP MATERIALIZED VIEW IF EXISTS public.shots;
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS public.shots
+TABLESPACE pg_default
+AS
+ SELECT CAST(play.details -> 'shootingPlayerId' AS INTEGER) AS personid,
+    count(1) AS shots,
+    game.season
+   FROM play
+     JOIN game ON game.id = play.gameid
+  WHERE play.typecode = 506
+  GROUP BY CAST(play.details -> 'shootingPlayerId' AS INTEGER), game.season
+WITH DATA;
+
+DROP MATERIALIZED VIEW IF EXISTS public.hits;
+CREATE MATERIALIZED VIEW IF NOT EXISTS public.hits
+TABLESPACE pg_default
+AS
+ SELECT CAST(play.details -> 'hittingPlayerId' AS INTEGER) AS personid,
+    count(1) AS hits,
+    game.season
+   FROM play
+     JOIN game ON game.id = play.gameid
+  WHERE play.typecode = 503
+  GROUP BY CAST(play.details -> 'hittingPlayerId' AS INTEGER), game.season
+WITH DATA;
+
+DROP MATERIALIZED VIEW IF EXISTS public.seasonStats;
+CREATE MATERIALIZED VIEW IF NOT EXISTS public.seasonStats
+TABLESPACE pg_default
+AS
+SELECT 
+	playerSeasons.playerId AS personId,
+	playerSeasons.season,
+	COALESCE(goals, 0) AS goals,
+	COALESCE(primaryAssists.assists, 0) + COALESCE(secondaryAssists.assists, 0) AS assists,
+	COALESCE(primaryAssists.assists, 0) AS primaryAssists,
+	COALESCE(secondaryAssists.assists, 0) AS secondaryAssists,
+	COALESCE(shots.shots, 0) AS shots,
+	COALESCE(hits.hits, 0) AS hits
+FROM ( 
+	SELECT DISTINCT season, playerId FROM game
+	INNER JOIN rosterspot
+	ON rosterspot.gameid = game.id
+) AS playerSeasons
+LEFT JOIN goals
+	ON playerSeasons.playerId = goals.personid
+	AND playerSeasons.season = goals.season 
+LEFT JOIN primaryAssists
+	ON playerSeasons.playerId = primaryAssists.personId 
+	AND playerSeasons.season = primaryAssists.season 
+LEFT JOIN secondaryAssists
+	ON playerSeasons.playerId = secondaryAssists.personId 
+	AND playerSeasons.season = secondaryAssists.season 
+LEFT JOIN shots
+	ON playerSeasons.playerId = shots.personId 
+	AND playerSeasons.season = shots.season
+LEFT JOIN hits
+	ON playerSeasons.playerId = hits.personId 
+	AND playerSeasons.season = hits.season;
+`;

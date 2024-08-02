@@ -1,5 +1,5 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { close, loadPlaysData, loadGameData, loadPersonData, loadSeasonData, loadTeamData, setupDatabase, loadRosterSpots, createPlayTypesView } from './db.js';
+import { close, loadPlaysData, loadGameData, loadPersonData, loadSeasonData, loadTeamData, setupDatabase, loadRosterSpots, createPlayTypesView, createStatsMaterializedViews } from './db.js';
 import { fetchPlayByPlayData, fetchTeams } from './api/api.js';
 import { PlayByPlayResponse } from './types/PlayByPlay.types.js';
 
@@ -27,6 +27,7 @@ async function loadDatabase() {
     }
     
     await createPlayTypesView();
+    await createStatsMaterializedViews();
     console.log('Complete load, closing database connection');
     close();
 }

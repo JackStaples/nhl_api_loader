@@ -1,6 +1,6 @@
 import pg from 'pg';
 import config from './config.js';
-import { setupSql, insertGameQuery, insertTeamQuery, insertPersonQuery, insertPersonPositionQuery, insertSeasonQuery, insertPlayQuery, insertPeriodQuery, insterRosterSpotQuery, createPlayTypesViewQuery } from './sql/scripts.js';
+import { setupSql, insertGameQuery, insertTeamQuery, insertPersonQuery, insertPersonPositionQuery, insertSeasonQuery, insertPlayQuery, insertPeriodQuery, insterRosterSpotQuery, createPlayTypesViewQuery, createStatsMaterializedViewsQuery } from './sql/scripts.js';
 import { Person, Play, PlayByPlayResponse, Team } from './types/PlayByPlay.types.js';
 
 const pool = new pg.Pool(config);
@@ -218,6 +218,16 @@ export async function createPlayTypesView() {
         console.log('PlayTypes view created');
     } catch (error) {
         console.error('Error creating PlayTypes view:', error);
+    }
+}
+
+export async function createStatsMaterializedViews() {
+    try {
+        console.log('Creating Stats materialized views');
+        await query(createStatsMaterializedViewsQuery);
+        console.log('Stats materialized views created');
+    } catch (error) {
+        console.error('Error creating Stats materialized views:', error);
     }
 }
 
