@@ -412,16 +412,16 @@ SELECT
 	playerSeasons.season,
 	COALESCE(goals, 0) * 6 AS goalPoints,
 	COALESCE(assists, 0) * 4 AS assistPoints,
+	(COALESCE(powerPlayPoints, 0) * 0.5) AS powerPlayPoints,
 	COALESCE(shots, 0) AS shotPoints,
-	COALESCE(seasonhits.hits, 0) * 0.5 AS hitpoints,
 	COALESCE(seasonBlockedShots.blocks, 0) AS blockedShotPoints,
-	COALESCE(powerPlayPoints, 0) AS powerPlayPoints,
+	COALESCE(seasonhits.hits, 0) * 0.5 AS hitpoints,
 	(COALESCE(goals, 0) * 6) + 
 	(COALESCE(assists, 0) * 4) + 
+	(COALESCE(powerPlayPoints, 0) * 0.5) +
 	COALESCE(shots, 0) +
-	(COALESCE(seasonhits.hits, 0) * 0.5) +
-	COALESCE(seasonBlockedShots.blocks, 0 +
-	COALESCE(powerPlayPoints, 0)) AS totalPoints
+	COALESCE(seasonBlockedShots.blocks, 0) +
+	(COALESCE(seasonhits.hits, 0) * 0.5) AS totalPoints
 FROM ( 
 	SELECT DISTINCT season, playerId FROM game
 	INNER JOIN rosterspot
