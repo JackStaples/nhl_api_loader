@@ -1,10 +1,9 @@
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { close, loadPlaysData, loadGameData, loadPersonData, loadSeasonData, loadTeamData, setupDatabase, loadRosterSpots, createPlayTypesView, createStatsMaterializedViews } from './db.js';
+import { close, loadPlaysData, loadGameData, loadPersonData, loadSeasonData, loadTeamData, setupDatabase, loadRosterSpots, createPlayTypesView, createStatsMaterializedViews, loadGameLogForPlayerMap } from './db.js';
 import { fetchPlayByPlayData, fetchTeams, fetchTeamSchedule } from './api/api.js';
 import { PlayByPlayResponse } from './types/PlayByPlay.types.js';
 
 // const seasons = ['2020', '2021', '2022', '2023', '2024'];
-const seasons = [2023];
+const seasons = [2022, 2023];
 
 async function loadGame(game: PlayByPlayResponse) {
     await loadGameData(game);
@@ -36,15 +35,19 @@ async function loadDatabase() {
         }
 
         let i = 1;
+        let gameQuerys = [];
         for (const gameId of gameMap.keys()) {
-            console.log(`Loading data for game ${i} of ${gameMap.size}`);
-            const game = await fetchPlayByPlayData(String(gameId));  
-            if (game) await loadGame(game);
-            console.log(`Loaded data for game ${i++} of ${gameMap.size}`);
-
+            gameQuerys.push(fetchAndLoadGame(i, gameMap, gameId));
+            if (gameQuerys.length > 7) {
+                await Promise.all(gameQuerys);
+                gameQuerys = [];
+            }
+            i++;
         }
 
-        
+        console.log('begin loading player map');
+        await loadGameLogForPlayerMap(seasons);
+        console.log('end loading player map');
     }
     
     await createPlayTypesView();
@@ -58,3 +61,10 @@ console.log('Beginning of run');
 loadDatabase();
 
 console.log('End of run');
+
+async function fetchAndLoadGame(i: number, gameMap: Map<number, boolean>, gameId: number) {
+    console.log(`Loading data for game ${i} of ${gameMap.size}`);
+    const game = await fetchPlayByPlayData(String(gameId));
+    if (game) await loadGame(game);
+    console.log(`Loaded data for game ${i} of ${gameMap.size}`);
+}

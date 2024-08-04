@@ -4,6 +4,7 @@ import path from 'path';
 import type { PlayByPlayResponse } from '../types/PlayByPlay.types.js';
 import { TeamsResponse } from '../types/Teams.types.js';
 import { ScheduleResponse } from '../types/Schedule.types.js';
+import { GameLogResponse } from '../types/GameLog.types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -96,6 +97,32 @@ export async function fetchTeamSchedule(triCode: string, season: string): Promis
   
         if (data) {
             return data as ScheduleResponse;
+        }
+    } catch (error) {
+        console.error('Error fetching data:', error);
+    }
+
+    return null;
+}
+
+export async function fetchGameLogForPlayer(playerId: string, season: number): Promise<GameLogResponse | null> {
+    // check if we have the data cached
+    if (fs.existsSync(`${cacheDir}/${playerId}-${season}.json`)) {
+        console.log(`Found cached game log data for player ${playerId} season ${season}`);
+        const data = fs.readFileSync(`${cacheDir}/${playerId}-${season}.json`, 'utf-8');
+        
+        console.log(`Returning cached game log data for player ${playerId} season ${season}`);
+        return JSON.parse(data);
+    }
+
+    const url = `https://api-web.nhle.com/v1/player/${playerId}/game-log/${season}${season+1}/2`;
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        fs.writeFileSync(`${cacheDir}/${playerId}-${season}.json`, JSON.stringify(data, null, 2));
+  
+        if (data) {
+            return data as GameLogResponse;
         }
     } catch (error) {
         console.error('Error fetching data:', error);

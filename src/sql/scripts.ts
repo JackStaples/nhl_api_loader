@@ -9,6 +9,8 @@ DROP TABLE IF EXISTS PersonPosition CASCADE;
 DROP TABLE IF EXISTS Person CASCADE;
 DROP TABLE IF EXISTS PositionCodes CASCADE;
 DROP TABLE IF EXISTS Season CASCADE;
+DROP TABLE IF EXISTS gameLog CASCADE;
+DROP TABLE IF EXISTS goalieGameLog CASCADE;
 DROP MATERIALIZED VIEW IF EXISTS PlayTypes;
 DROP SEQUENCE IF EXISTS play_id_seq CASCADE;
 
@@ -104,7 +106,57 @@ CREATE TABLE PersonPosition (
     FOREIGN KEY (PositionCode) REFERENCES PositionCodes(PositionCode),
     FOREIGN KEY (seasonId) REFERENCES Season(id)
 );
+
+CREATE TABLE gameLog (
+    id SERIAL PRIMARY KEY,
+    playerId INTEGER NOT NULL,
+    gameId INTEGER NOT NULL,
+    teamAbbrev VARCHAR(3) NOT NULL,
+    homeRoadFlag CHAR(1) NOT NULL,
+    gameDate DATE NOT NULL,
+    goals INTEGER NOT NULL,
+    assists INTEGER NOT NULL,
+    commonName VARCHAR(50) NOT NULL,
+    opponentCommonName VARCHAR(50) NOT NULL,
+    points INTEGER NOT NULL,
+    plusMinus INTEGER NOT NULL,
+    powerPlayGoals INTEGER NOT NULL,
+    powerPlayPoints INTEGER NOT NULL,
+    gameWinningGoals INTEGER NOT NULL,
+    otGoals INTEGER NOT NULL,
+    shots INTEGER NOT NULL,
+    shifts INTEGER NOT NULL,
+    shorthandedGoals INTEGER NOT NULL,
+    shorthandedPoints INTEGER NOT NULL,
+    opponentAbbrev VARCHAR(3) NOT NULL,
+    pim INTEGER NOT NULL,
+    toi VARCHAR(8) NOT NULL
+);
+
+CREATE TABLE goalieGameLog (
+    id SERIAL PRIMARY KEY,
+    playerId INTEGER NOT NULL,
+    gameId INTEGER NOT NULL,
+    teamAbbrev VARCHAR(3) NOT NULL,
+    homeRoadFlag CHAR(1) NOT NULL,
+    gameDate DATE NOT NULL,
+    goals INTEGER NOT NULL,
+    assists INTEGER NOT NULL,
+    commonName VARCHAR(50) NOT NULL,
+    opponentCommonName VARCHAR(50) NOT NULL,
+    gamesStarted INTEGER NOT NULL,
+    decision VARCHAR(1) NOT NULL,
+    shotsAgainst INTEGER NOT NULL,
+    goalsAgainst INTEGER NOT NULL,
+    savePctg DECIMAL(5,3) NOT NULL,
+    shutouts INTEGER NOT NULL,
+    opponentAbbrev VARCHAR(3) NOT NULL,
+    pim INTEGER NOT NULL,
+    toi VARCHAR(8) NOT NULL
+);
 `;
+
+
 
 export const insertGameQuery = `
     INSERT INTO Game (id, season, gameType, limitedScoring, gameDate, venue, venueLocation, startTimeUTC,
@@ -159,14 +211,70 @@ export const insterRosterSpotQuery = `
         VALUES ($1, $2, $3, $4)
     `;
 
+export const insertGameLogQuery = `
+INSERT INTO gameLog (
+    playerId,
+    gameId, 
+    teamAbbrev, 
+    homeRoadFlag, 
+    gameDate, 
+    goals, 
+    assists, 
+    commonName, 
+    opponentCommonName, 
+    points, 
+    plusMinus, 
+    powerPlayGoals, 
+    powerPlayPoints, 
+    gameWinningGoals, 
+    otGoals, 
+    shots, 
+    shifts, 
+    shorthandedGoals, 
+    shorthandedPoints, 
+    opponentAbbrev, 
+    pim, 
+    toi
+)  VALUES
+    $insert
+;
+`;
+
+export const insertGoalieGameLogQuery = `
+INSERT INTO goalieGameLog (
+    playerId,
+    gameId, 
+    teamAbbrev, 
+    homeRoadFlag, 
+    gameDate, 
+    goals, 
+    assists, 
+    commonName, 
+    opponentCommonName, 
+    gamesStarted, 
+    decision, 
+    shotsAgainst, 
+    goalsAgainst, 
+    savePctg, 
+    shutouts, 
+    opponentAbbrev, 
+    pim, 
+    toi
+) VALUES
+    $insert
+;
+`;
+
+
 export const createPlayTypesViewQuery = `    
 CREATE MATERIALIZED VIEW playtypes AS
 SELECT DISTINCT typeCode, typeDescKey
 FROM Play;`;
 
 export const createStatsMaterializedViewsQuery = `
-DROP MATERIALIZED VIEW IF EXISTS public.seasonStats;
 DROP MATERIALIZED VIEW IF EXISTS public.seasonFantasyStats;
+DROP MATERIALIZED VIEW IF EXISTS public.seasonStats;
+DROP MATERIALIZED VIEW IF EXISTS public.seasonStatsGameLog;
 
 DROP MATERIALIZED VIEW IF EXISTS public.seasonGoals;
 CREATE MATERIALIZED VIEW IF NOT EXISTS public.seasonGoals
@@ -283,6 +391,19 @@ LEFT JOIN seasonBlockedShots
 	ON playerSeasons.playerId = seasonBlockedShots.personId 
 	AND playerSeasons.season = seasonBlockedShots.season;
 
+	  
+CREATE MATERIALIZED VIEW seasonStatsGameLog AS
+SELECT 
+    playerId AS personid,
+    season,
+    SUM(goals) AS goals,
+    SUM(assists) AS assists,
+    SUM(powerplaypoints) AS powerplaypoints,
+    SUM(shots) AS shots
+FROM gamelog
+INNER JOIN game ON gameid = game.id
+GROUP BY playerid, season;
+
 CREATE MATERIALIZED VIEW IF NOT EXISTS public.seasonFantasyStats
 TABLESPACE pg_default
 AS
@@ -290,35 +411,30 @@ SELECT
 	playerSeasons.playerId AS personId,
 	playerSeasons.season,
 	COALESCE(goals, 0) * 6 AS goalPoints,
-	(COALESCE(seasonPrimaryAssists.assists, 0) + COALESCE(seasonSecondaryAssists.assists, 0)) * 4 AS assistPoints,
-	COALESCE(seasonShots.shots, 0) AS shotPoints,
+	COALESCE(assists, 0) * 4 AS assistPoints,
+	COALESCE(shots, 0) AS shotPoints,
 	COALESCE(seasonhits.hits, 0) * 0.5 AS hitpoints,
 	COALESCE(seasonBlockedShots.blocks, 0) AS blockedShotPoints,
+	COALESCE(powerPlayPoints, 0) AS powerPlayPoints,
 	(COALESCE(goals, 0) * 6) + 
-	((COALESCE(seasonPrimaryAssists.assists, 0) + COALESCE(seasonSecondaryAssists.assists, 0)) * 4) + 
-	COALESCE(seasonShots.shots, 0) +
+	(COALESCE(assists, 0) * 4) + 
+	COALESCE(shots, 0) +
 	(COALESCE(seasonhits.hits, 0) * 0.5) +
-	COALESCE(seasonBlockedShots.blocks, 0) AS totalPoints
+	COALESCE(seasonBlockedShots.blocks, 0 +
+	COALESCE(powerPlayPoints, 0)) AS totalPoints
 FROM ( 
 	SELECT DISTINCT season, playerId FROM game
 	INNER JOIN rosterspot
 	ON rosterspot.gameid = game.id
 ) AS playerSeasons
-LEFT JOIN seasonGoals
-	ON playerSeasons.playerId = seasonGoals.personid
-	AND playerSeasons.season = seasonGoals.season 
-LEFT JOIN seasonPrimaryAssists
-	ON playerSeasons.playerId = seasonPrimaryAssists.personId 
-	AND playerSeasons.season = seasonPrimaryAssists.season 
-LEFT JOIN seasonSecondaryAssists
-	ON playerSeasons.playerId = seasonSecondaryAssists.personId 
-	AND playerSeasons.season = seasonSecondaryAssists.season 
-LEFT JOIN seasonShots
-	ON playerSeasons.playerId = seasonShots.personId 
-	AND playerSeasons.season = seasonShots.season
 LEFT JOIN seasonhits
 	ON playerSeasons.playerId = seasonhits.personId 
 	AND playerSeasons.season = seasonhits.season
 LEFT JOIN seasonBlockedShots
 	ON playerSeasons.playerId = seasonBlockedShots.personId 
-	AND playerSeasons.season = seasonBlockedShots.season;`;
+	AND playerSeasons.season = seasonBlockedShots.season
+LEFT JOIN seasonStatsGameLog
+	ON playerSeasons.playerId = seasonStatsGameLog.personid 
+	AND playerSeasons.season = seasonStatsGameLog.season
+ORDER BY personid, season;
+`;
