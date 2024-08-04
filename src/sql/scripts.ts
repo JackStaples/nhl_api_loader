@@ -437,4 +437,40 @@ LEFT JOIN seasonStatsGameLog
 	ON playerSeasons.playerId = seasonStatsGameLog.personid 
 	AND playerSeasons.season = seasonStatsGameLog.season
 ORDER BY personid, season;
+
+DROP MATERIALIZED VIEW IF EXISTS goalieSeasonFantasyStats;
+DROP MATERIALIZED VIEW IF EXISTS goalieSeasonStats;
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS goalieSeasonStats AS
+SELECT 
+	wins.playerId, 
+	wins.season,
+	SUM(shotsagainst) - SUM(goalsagainst) AS saves,
+	SUM(goalsagainst) AS goalsagainst,
+	wins
+from goaliegamelog
+INNER JOIN game
+ON game.id = goaliegamelog.gameid
+INNER JOIN (
+	SELECT playerId, season, count(1) AS wins
+	FROM goaliegamelog
+	INNER JOIN game
+	ON game.id = goaliegamelog.gameid
+	WHERE decision = 'W'
+	GROUP BY playerId, season
+) AS wins
+ON wins.playerid = goaliegamelog.playerid
+AND wins.season = game.season
+GROUP BY wins.playerId, wins.season, wins;
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS goalieSeasonFantasyStats AS
+SELECT 
+	playerId,
+	season,
+	(wins * 6) AS winPoints,
+	(saves * 0.6) AS savePoints,
+	(goalsAgainst * -3) AS goalsAgainstPoints,
+	((wins * 6) + (saves * 0.6) + (goalsAgainst * -3)) AS totalPoints
+FROM goalieseasonstats
+ORDER BY totalpoints DESC;
 `;
