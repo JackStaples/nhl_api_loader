@@ -426,6 +426,7 @@ FROM (
 	SELECT DISTINCT season, playerId FROM game
 	INNER JOIN rosterspot
 	ON rosterspot.gameid = game.id
+  WHERE positioncode <> 'G'
 ) AS playerSeasons
 LEFT JOIN seasonhits
 	ON playerSeasons.playerId = seasonhits.personId 
