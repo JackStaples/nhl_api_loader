@@ -1,17 +1,33 @@
-import { close, loadPlaysData, loadGameData, loadPersonData, loadSeasonData, loadTeamData, setupDatabase, loadRosterSpots, createPlayTypesView, createStatsMaterializedViews, loadGameLogForPlayerMap } from './db.js';
+import { close, loadPlaysData, loadGameData, loadPersonData, loadSeasonData, loadTeamData, setupDatabase, loadRosterSpots, createPlayTypesView, createStatsMaterializedViews, loadGameLogForPlayerMap, loadWeeklyMaterializedView } from './db.js';
 import { fetchPlayByPlayData, fetchTeams, fetchTeamSchedule } from './api/api.js';
 import { PlayByPlayResponse } from './types/PlayByPlay.types.js';
 
 // const seasons = ['2020', '2021', '2022', '2023', '2024'];
 const seasons = [2022, 2023];
 
+async function loadInitialGameData(game: PlayByPlayResponse) {
+    await Promise.all(
+        [
+            loadGameData(game),
+            loadTeamData(game),
+            loadSeasonData(game.season.toString()),
+            loadPersonData(game),
+        ]
+    );
+}
+
+async function loadDependantData(game: PlayByPlayResponse) {
+    await Promise.all(
+        [
+            loadPlaysData(game),
+            loadRosterSpots(game),
+        ]
+    );
+}
+
 async function loadGame(game: PlayByPlayResponse) {
-    await loadGameData(game);
-    await loadTeamData(game);
-    await loadSeasonData(game.season.toString());
-    await loadPersonData(game);
-    await loadPlaysData(game);
-    await loadRosterSpots(game);
+    await loadInitialGameData(game);
+    await loadDependantData(game);
 }
 
 async function loadDatabase() {
@@ -38,7 +54,7 @@ async function loadDatabase() {
         let gameQuerys = [];
         for (const gameId of gameMap.keys()) {
             gameQuerys.push(fetchAndLoadGame(i, gameMap, gameId));
-            if (gameQuerys.length > 7) {
+            if (gameQuerys.length > 3) {
                 await Promise.all(gameQuerys);
                 gameQuerys = [];
             }
@@ -52,6 +68,9 @@ async function loadDatabase() {
     
     await createPlayTypesView();
     await createStatsMaterializedViews();
+
+    await loadWeeklyMaterializedView();
+
     console.log('Complete load, closing database connection');
     close();
 }
@@ -66,5 +85,5 @@ async function fetchAndLoadGame(i: number, gameMap: Map<number, boolean>, gameId
     console.log(`Loading data for game ${i} of ${gameMap.size}`);
     const game = await fetchPlayByPlayData(String(gameId));
     if (game) await loadGame(game);
-    console.log(`Loaded data for game ${i} of ${gameMap.size}`);
+    console.log(`Loaded data for game ${i} of ${gameMap.size}, ${Math.floor(i / gameMap.size * 100)}% complete`);
 }

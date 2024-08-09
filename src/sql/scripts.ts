@@ -475,3 +475,148 @@ SELECT
 FROM goalieseasonstats
 ORDER BY totalpoints DESC;
 `;
+
+
+export function createWeeklyStatMaterializedView() {
+    return `
+DROP MATERIALIZED VIEW IF EXISTS weeklyfantasystats;
+DROP MATERIALIZED VIEW IF EXISTS weeklystats;
+DROP MATERIALIZED VIEW IF EXISTS weeklyblockstats;
+DROP MATERIALIZED VIEW IF EXISTS weeklyhitstats;
+DROP MATERIALIZED VIEW IF EXISTS eklygamelogstats;
+DROP MATERIALIZED VIEW IF EXISTS seasonweeks;
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS seasonweeks AS
+ SELECT season,
+    row_number() OVER (PARTITION BY season ORDER BY (min(gamedate))) AS week,
+    EXTRACT(week FROM gamedate) AS weekofyear,
+    min(gamedate) AS firstgameofweek
+   FROM game
+  GROUP BY season, (EXTRACT(week FROM gamedate))
+  ORDER BY season, (row_number() OVER (PARTITION BY season ORDER BY (min(gamedate))));
+
+CREATE MATERIALIZED VIEW weeklyhitstats AS
+WITH playerWeeks AS (
+	SELECT rs.playerId, sw.week, sw.weekOfYear, sw.season
+	FROM rosterspot rs
+	INNER JOIN game g ON rs.gameid = g.id
+	INNER JOIN seasonweeks sw ON sw.season = g.season
+	WHERE rs.positioncode <> 'G'
+	GROUP BY rs.playerId, sw.week, sw.weekOfYear, sw.season
+	ORDER BY rs.playerId, sw.season, sw.week
+),
+hitPlays AS (
+	SELECT gamedate, details, season FROM play
+	FULL JOIN game ON game.id = play.gameid
+	WHERE typecode = 503
+)
+SELECT 
+	playerId,
+	playerWeeks.season,
+	week,
+	SUM(CASE WHEN details IS null THEN 0 ELSE 1 END) AS hits
+FROM playerWeeks
+LEFT JOIN hitPlays
+ON EXTRACT(week FROM hitPlays.gamedate) = playerWeeks.weekOfYear
+AND CAST(hitPlays.details->'hittingPlayerId' AS INTEGER) = playerWeeks.playerId
+AND hitPlays.season = playerWeeks.season
+GROUP BY playerId, playerWeeks.season, week
+ORDER BY playerId, playerWeeks.season, week ASC;
+
+CREATE MATERIALIZED VIEW weeklyblockstats AS
+WITH playerWeeks AS (
+	SELECT rs.playerId, sw.week, sw.weekOfYear, sw.season
+	FROM rosterspot rs
+	INNER JOIN game g ON rs.gameid = g.id
+	INNER JOIN seasonweeks sw ON sw.season = g.season
+	WHERE rs.positioncode <> 'G'
+	GROUP BY rs.playerId, sw.week, sw.weekOfYear, sw.season
+	ORDER BY rs.playerId, sw.season, sw.week
+),
+blockedShotPlays AS (
+	SELECT gamedate, details, season FROM play
+	FULL JOIN game ON game.id = play.gameid
+	WHERE typecode = 508
+)
+SELECT 
+	playerId,
+	playerWeeks.season,
+	week,
+	SUM(CASE WHEN details IS null THEN 0 ELSE 1 END) AS blockedShots
+FROM playerWeeks
+LEFT JOIN blockedShotPlays
+ON EXTRACT(week FROM blockedShotPlays.gamedate) = playerWeeks.weekOfYear
+AND CAST(blockedShotPlays.details->'blockingPlayerId' AS INTEGER) = playerWeeks.playerId
+AND blockedShotPlays.season = playerWeeks.season
+GROUP BY playerId, playerWeeks.season, week
+ORDER BY playerId, playerWeeks.season, week ASC;
+
+CREATE MATERIALIZED VIEW weeklygamelogstats AS
+WITH playerWeeks AS (
+    SELECT rs.playerId, sw.week, sw.weekOfYear, sw.season
+    FROM rosterspot rs
+    INNER JOIN game g ON rs.gameid = g.id
+    INNER JOIN seasonweeks sw ON sw.season = g.season
+    WHERE rs.positioncode <> 'G'
+    GROUP BY rs.playerId, sw.week, sw.weekOfYear, sw.season
+    ORDER BY rs.playerId, sw.season, sw.week
+),
+gamelogData AS (
+    SELECT gl.playerid, EXTRACT(week FROM gl.gamedate) AS weekOfYear, g.season,
+           SUM(gl.goals) AS totalGoals, SUM(gl.assists) AS totalAssists,
+           SUM(gl.shots) AS totalShots, SUM(gl.powerplaypoints) AS totalPowerplayPoints,
+           COUNT(1) AS gamesplayed
+    FROM gamelog gl
+    INNER JOIN game g ON gl.gameid = g.id
+    GROUP BY gl.playerid, EXTRACT(week FROM gl.gamedate), g.season
+)
+SELECT pw.playerId, pw.season, pw.week,
+       COALESCE(gd.totalGoals, 0) AS totalGoals,
+       COALESCE(gd.totalAssists, 0) AS totalAssists,
+       COALESCE(gd.totalShots, 0) AS totalShots,
+       COALESCE(gd.totalPowerplayPoints, 0) AS totalPowerplayPoints,
+       COALESCE(gd.gamesplayed, 0) AS gamesplayed
+FROM playerWeeks pw
+LEFT JOIN gamelogData gd 
+       ON pw.playerId = gd.playerid
+      AND pw.weekOfYear = gd.weekOfYear
+      AND pw.season = gd.season
+ORDER BY pw.playerId, pw.season, pw.week ASC;
+
+CREATE MATERIALIZED VIEW weeklystats AS
+SELECT 
+	wbs.playerId,
+	wbs.season,
+	wbs.week,
+	goals,
+	assists,
+	shots,
+	powerplaypoints,
+	blockedshots,
+	hits,
+	gamesplayed
+FROM weeklygamelogstats wgs
+INNER JOIN weeklyblockstats wbs
+ON wbs.playerId = wgs.playerId
+AND wbs.season = wgs.season
+AND wbs.week = wgs.week
+INNER JOIN weeklyhitstats whs
+ON whs.playerId = wgs.playerId
+AND whs.season = wgs.season
+AND whs.week = wgs.week;
+
+CREATE MATERIALIZED VIEW weeklyfantasystats AS
+SELECT 
+	playerId,
+	season,
+	week,
+	goals * 6 AS goalPoints,
+	assists * 4 AS assistPoints,
+	shots AS shotPoints,
+	blockedShots as blockedShotPoints,
+	powerPlayPoints * 0.5 as powerplayPointPoints,
+	hits * 0.5 AS hitPoints,
+	(goals * 6) + (assists * 4) + shots + blockedShots + (powerPlayPoints * 0.5) + (hits * 0.5) AS totalPoints
+FROM weeklystats;
+`;
+}

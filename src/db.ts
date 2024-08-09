@@ -1,6 +1,6 @@
 import pg from 'pg';
 import config from './config.js';
-import { setupSql, insertGameQuery, insertTeamQuery, insertPersonQuery, insertPersonPositionQuery, insertSeasonQuery, insertPlayQuery, insertPeriodQuery, insterRosterSpotQuery, createPlayTypesViewQuery, createStatsMaterializedViewsQuery, insertGameLogQuery, insertGoalieGameLogQuery } from './sql/scripts.js';
+import { setupSql, insertGameQuery, insertTeamQuery, insertPersonQuery, insertPersonPositionQuery, insertSeasonQuery, insertPlayQuery, insertPeriodQuery, insterRosterSpotQuery, createPlayTypesViewQuery, createStatsMaterializedViewsQuery, insertGameLogQuery, insertGoalieGameLogQuery, createWeeklyStatMaterializedView } from './sql/scripts.js';
 import { Person, Play, PlayByPlayResponse, RosterSpot, Team } from './types/PlayByPlay.types.js';
 import { fetchGameLogForPlayer } from './api/api.js';
 import { GameLog, GameLogResponse, GoalieGameLog, isGoalieGameLog } from './types/GameLog.types.js';
@@ -259,7 +259,7 @@ export async function loadGameLogForPlayerMap(seasons: number[]) {
 async function fetchAndLoadGameLog(playerId: number, season: number) {
     if (gameLogPlayerMap.get(`${playerId}-${season}`)) return;
     gameLogPlayerMap.set(`${playerId}-${season}`, true);
-    
+
     console.log(`loading game log for player ${playerId} for season ${season}`);
     const gameLog = await fetchGameLogForPlayer(playerId.toString(), season);
     if (gameLog) {
@@ -295,6 +295,16 @@ function createGameLogInsertString(game: GameLog | GoalieGameLog, playerId: numb
         return `(${playerId}, ${game.gameId}, '${game.teamAbbrev ?? ''}', '${game.homeRoadFlag ?? ''}', '${game.gameDate ?? ''}', ${game.goals ?? 0}, ${game.assists ?? 0}, '${game.commonName.default ?? ''}', '${game.opponentCommonName.default ?? ''}', ${game.gamesStarted ?? 0}, '${game.decision ?? '?'}', ${game.shotsAgainst ?? 0}, ${game.goalsAgainst ?? 0}, ${game.savePctg ?? 0}, ${game.shutouts ?? 0}, '${game.opponentAbbrev ?? ''}', ${game.pim ?? 0}, '${game.toi ?? ''}')`;
     } else {
         return `(${playerId}, ${game.gameId}, '${game.teamAbbrev ?? ''}', '${game.homeRoadFlag ?? ''}', '${game.gameDate ?? ''}', ${game.goals ?? 0}, ${game.assists ?? 0}, '${game.commonName.default ?? ''}', '${game.opponentCommonName.default ?? ''}', ${game.points ?? 0}, ${game.plusMinus ?? 0}, ${game.powerPlayGoals ?? 0}, ${game.powerPlayPoints ?? 0}, ${game.gameWinningGoals ?? 0}, ${game.otGoals ?? 0}, ${game.shots ?? 0}, ${game.shifts ?? 0}, ${game.shorthandedGoals ?? 0}, ${game.shorthandedPoints ?? 0}, '${game.opponentAbbrev ?? ''}', ${game.pim ?? 0}, '${game.toi ?? ''}')`;
+    }
+}
+
+
+export async function loadWeeklyMaterializedView() {
+    const createString = createWeeklyStatMaterializedView();
+    try {
+        await query(createString);
+    } catch (error) {
+        console.error('Error creating season weeks materialized view:', error);
     }
 }
 
