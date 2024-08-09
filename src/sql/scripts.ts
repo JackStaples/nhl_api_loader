@@ -49,8 +49,7 @@ CREATE TABLE Person (
 );
 
 CREATE TABLE Season (
-    id SERIAL PRIMARY KEY,
-    seasonName VARCHAR(8) NOT NULL
+    season INT PRIMARY KEY
 );
 
 CREATE TABLE Period (
@@ -100,11 +99,11 @@ INSERT INTO PositionCodes (PositionCode) VALUES ('R');
 CREATE TABLE PersonPosition (
     personId INT,
     positionCode VARCHAR(1),
-    seasonId INT,
-    PRIMARY KEY (personId, PositionCode, seasonId),
+    season INT,
+    PRIMARY KEY (personId, PositionCode, season),
     FOREIGN KEY (personId) REFERENCES Person(id),
     FOREIGN KEY (PositionCode) REFERENCES PositionCodes(PositionCode),
-    FOREIGN KEY (seasonId) REFERENCES Season(id)
+    FOREIGN KEY (season) REFERENCES Season(season)
 );
 
 CREATE TABLE gameLog (
@@ -187,11 +186,11 @@ VALUES ($1, $2, $3)
 `;
     
 export const insertPersonPositionQuery = `
-        INSERT INTO PersonPosition (personId, positionCode, seasonId)
-        VALUES ($1, $2, (SELECT id FROM Season where seasonName = $3))
+        INSERT INTO PersonPosition (personId, positionCode, season)
+        VALUES ($1, $2, $3)
       `;
 
-export const insertSeasonQuery = 'INSERT INTO Season (seasonName) VALUES ($1)';
+export const insertSeasonQuery = 'INSERT INTO Season (season) VALUES ($1)';
 
 export const insertPlayQuery = `
       INSERT INTO Play (
@@ -563,18 +562,18 @@ WITH playerWeeks AS (
 ),
 gamelogData AS (
     SELECT gl.playerid, EXTRACT(week FROM gl.gamedate) AS weekOfYear, g.season,
-           SUM(gl.goals) AS totalGoals, SUM(gl.assists) AS totalAssists,
-           SUM(gl.shots) AS totalShots, SUM(gl.powerplaypoints) AS totalPowerplayPoints,
+           SUM(gl.goals) AS goals, SUM(gl.assists) AS assists,
+           SUM(gl.shots) AS shots, SUM(gl.powerplaypoints) AS powerPlayPoints,
            COUNT(1) AS gamesplayed
     FROM gamelog gl
     INNER JOIN game g ON gl.gameid = g.id
     GROUP BY gl.playerid, EXTRACT(week FROM gl.gamedate), g.season
 )
 SELECT pw.playerId, pw.season, pw.week,
-       COALESCE(gd.totalGoals, 0) AS totalGoals,
-       COALESCE(gd.totalAssists, 0) AS totalAssists,
-       COALESCE(gd.totalShots, 0) AS totalShots,
-       COALESCE(gd.totalPowerplayPoints, 0) AS totalPowerplayPoints,
+       COALESCE(gd.goals, 0) AS goals,
+       COALESCE(gd.assists, 0) AS assists,
+       COALESCE(gd.shots, 0) AS shots,
+       COALESCE(gd.powerPlayPoints, 0) AS powerPlayPoints,
        COALESCE(gd.gamesplayed, 0) AS gamesplayed
 FROM playerWeeks pw
 LEFT JOIN gamelogData gd 
@@ -617,6 +616,5 @@ SELECT
 	powerPlayPoints * 0.5 as powerplayPointPoints,
 	hits * 0.5 AS hitPoints,
 	(goals * 6) + (assists * 4) + shots + blockedShots + (powerPlayPoints * 0.5) + (hits * 0.5) AS totalPoints
-FROM weeklystats;
-`;
+FROM weeklystats;`;
 }

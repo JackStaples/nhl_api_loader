@@ -4,13 +4,14 @@ import { setupSql, insertGameQuery, insertTeamQuery, insertPersonQuery, insertPe
 import { Person, Play, PlayByPlayResponse, RosterSpot, Team } from './types/PlayByPlay.types.js';
 import { fetchGameLogForPlayer } from './api/api.js';
 import { GameLog, GameLogResponse, GoalieGameLog, isGoalieGameLog } from './types/GameLog.types.js';
+import { exit } from 'process';
 
 const pool = new pg.Pool(config);
 
 const teamMap: Map<number, boolean> = new Map();
 const personMap: Map<number, boolean> = new Map();
 const personPositionMap: Map<number, Map<string, boolean>> = new Map();
-const seasonMap: Map<string, boolean> = new Map();
+const seasonMap: Map<number, boolean> = new Map();
 const periodMap: Map<number, boolean> = new Map();
 const gameLogPlayerMap: Map<string, boolean> = new Map();
 
@@ -26,7 +27,7 @@ export async function setupDatabase() {
         // console.log('Setting up database');
         await query(setupSql);
     } catch (error) {
-        // console.error('Error setting up database:', error);
+        console.error('Error setting up database:', error);
     }
 }
 
@@ -40,13 +41,32 @@ export async function loadGameData(game: PlayByPlayResponse) {
         await pool.query(query);
         // console.log(`Game data inserted for game ${game.id}`);
     } catch (error) {
-        // console.error('Error inserting game data:', error);
+        console.error('Error inserting game data:', error, query);
+        exit(1);
     }
 }
 
-function getInsertGameString(game: PlayByPlayResponse) {
-    return `${game.id}, ${game.season}, ${game.gameType}, ${game.limitedScoring}, '${game.gameDate}', '${game.venue.default}', '${game.venueLocation.default}', '${game.startTimeUTC}', '${game.easternUTCOffset}', '${game.venueUTCOffset}', '${game.gameState}', '${game.gameScheduleState}', ${game.displayPeriod}, ${game.maxPeriods}, ${game.shootoutInUse}, ${game.otInUse}, ${game.regPeriods}`;
+function escapeStringForSQL(value: string): string {
+    return value.replace(/'/g, '\'\'');
 }
+
+function getInsertGameString(game: PlayByPlayResponse) {
+    return `${game.id}, ${game.season}, ${game.gameType}, ${game.limitedScoring}, 
+            '${escapeStringForSQL(game.gameDate.toString())}', 
+            '${escapeStringForSQL(game.venue.default)}', 
+            '${escapeStringForSQL(game.venueLocation.default)}', 
+            '${escapeStringForSQL(game.startTimeUTC.toString())}', 
+            '${escapeStringForSQL(game.easternUTCOffset)}', 
+            '${escapeStringForSQL(game.venueUTCOffset)}', 
+            '${escapeStringForSQL(game.gameState)}', 
+            '${escapeStringForSQL(game.gameScheduleState)}', 
+            ${game.displayPeriod}, 
+            ${game.maxPeriods}, 
+            ${game.shootoutInUse}, 
+            ${game.otInUse}, 
+            ${game.regPeriods}`;
+}
+
 
 export async function loadTeamData(game: PlayByPlayResponse) {
     // console.log(`Beginning to load team data for game ${game.id}`);
@@ -77,7 +97,7 @@ async function insertTeam(team: Team) {
     }
 }
 
-export async function loadSeasonData(season: string) {
+export async function loadSeasonData(season: number) {
     if (
         !seasonMap.has(season)
     ) {
@@ -90,7 +110,7 @@ export async function loadSeasonData(season: string) {
             // console.log(`Season data inserted for season ${season}`);
             seasonMap.set(season, true);
         } catch (error) {
-            // console.error('Error inserting season data:', error);
+            console.error('Error inserting season data:', error);
         }
     }
 }
@@ -129,7 +149,7 @@ async function insertPerson(person: Person) {
             // console.log(`Person data inserted for person ${person.id}`);
             personMap.set(person.id, true);
         } catch (error) {
-            // console.error('Error inserting person data:', error);
+            console.error('Error inserting person data:', error);
         }
     }
 
@@ -156,7 +176,7 @@ async function insertPersonPosition(personId: number, position: string, season: 
             // console.log(`Person position data inserted for person ${personId}`);
             personPositionMap.get(personId)?.set(position, true);
         } catch (error) {
-            // console.error('Error inserting person position data:', error);
+            console.error('Error inserting person position data:', error, insertPersonPositionQuery, personPositionData);
         }
     }
 
@@ -176,7 +196,7 @@ export async function loadPlaysData(game: PlayByPlayResponse) {
         await pool.query(query);
         // console.log(`Play data inserted for game ${game.id}`);
     } catch (error) {
-        // console.error('Error inserting play data:', error);
+        console.error('Error inserting play data:', error);
     }
 }
 
@@ -192,7 +212,7 @@ async function insertPeriod(play: Play) {
             // console.log(`Period data inserted for period ${play.periodDescriptor.number}`);
             periodMap.set(play.periodDescriptor.number, true);
         } catch (error) {
-            // console.error('Error inserting period data:', error);
+            console.error('Error inserting period data:', error);
         }
     }
 }
@@ -215,7 +235,8 @@ export async function loadRosterSpots(game: PlayByPlayResponse) {
         try {
             querys.push(query(insterRosterSpotQuery, rosterSpotData));
         } catch (error) {
-            // console.error('Error inserting roster spot data:', error);
+            console.error('Error inserting roster spot data:', error, insterRosterSpotQuery, rosterSpotData);
+            exit(1);
         }
     }
     await Promise.all(querys);
@@ -228,7 +249,7 @@ export async function createPlayTypesView() {
         await query(createPlayTypesViewQuery);
         // console.log('PlayTypes view created');
     } catch (error) {
-        // console.error('Error creating PlayTypes view:', error);
+        console.error('Error creating PlayTypes view:', error);
     }
 }
 
@@ -238,7 +259,7 @@ export async function createStatsMaterializedViews() {
         await query(createStatsMaterializedViewsQuery);
         // console.log('Stats materialized views created');
     } catch (error) {
-        // console.error('Error creating Stats materialized views:', error);
+        console.error('Error creating Stats materialized views:', error);
     }
 }
 

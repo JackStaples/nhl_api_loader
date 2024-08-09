@@ -1,28 +1,23 @@
 import { close, loadPlaysData, loadGameData, loadPersonData, loadSeasonData, loadTeamData, setupDatabase, loadRosterSpots, createPlayTypesView, createStatsMaterializedViews, loadGameLogForPlayerMap, loadWeeklyMaterializedView } from './db.js';
 import { fetchPlayByPlayData, fetchTeams, fetchTeamSchedule } from './api/api.js';
 import { PlayByPlayResponse } from './types/PlayByPlay.types.js';
+import { exit } from 'process';
 
-// const seasons = ['2020', '2021', '2022', '2023', '2024'];
-const seasons = [2022, 2023];
+const seasons = [2014];
+// const seasons = [2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023];
 
 async function loadInitialGameData(game: PlayByPlayResponse) {
-    await Promise.all(
-        [
-            loadGameData(game),
-            loadTeamData(game),
-            loadSeasonData(game.season.toString()),
-            loadPersonData(game),
-        ]
-    );
+    // console.log(`Loading initial data for game ${game.id}`);
+    await loadGameData(game);
+    await loadTeamData(game);
+    await loadSeasonData(game.season);
+    await loadPersonData(game);
+    // console.log(`Loaded initial data for game ${game.id}`);
 }
 
 async function loadDependantData(game: PlayByPlayResponse) {
-    await Promise.all(
-        [
-            loadPlaysData(game),
-            loadRosterSpots(game),
-        ]
-    );
+    await loadPlaysData(game);
+    await loadRosterSpots(game);
 }
 
 async function loadGame(game: PlayByPlayResponse) {
@@ -31,12 +26,18 @@ async function loadGame(game: PlayByPlayResponse) {
 }
 
 async function loadDatabase() {
-    await setupDatabase();
+    try {
+        await setupDatabase();
+    } catch (error) {
+        console.error('Error setting up database:', error);
+        exit(1);
+    }
 
     const teams = await fetchTeams();
     if (!teams) return;
 
     for (const season of seasons) {
+        console.log(`Loading data for season ${season}`);
         const gameMap = new Map<number, boolean>();
 
         for (const team of teams.data) {
@@ -51,24 +52,18 @@ async function loadDatabase() {
         }
 
         let i = 1;
-        let gameQuerys = [];
         for (const gameId of gameMap.keys()) {
-            gameQuerys.push(fetchAndLoadGame(i, gameMap, gameId));
-            if (gameQuerys.length > 3) {
-                await Promise.all(gameQuerys);
-                gameQuerys = [];
-            }
-            i++;
+            await fetchAndLoadGame(i++, gameMap, gameId);
         }
-
-        console.log('begin loading player map');
-        await loadGameLogForPlayerMap(seasons);
-        console.log('end loading player map');
+        console.log(`Loaded data for season ${season}`);
     }
-    
+
+    console.log('begin loading player map');
+    await loadGameLogForPlayerMap(seasons);
+    console.log('end loading player map');
+
     await createPlayTypesView();
     await createStatsMaterializedViews();
-
     await loadWeeklyMaterializedView();
 
     console.log('Complete load, closing database connection');
@@ -82,8 +77,8 @@ loadDatabase();
 console.log('End of run');
 
 async function fetchAndLoadGame(i: number, gameMap: Map<number, boolean>, gameId: number) {
-    console.log(`Loading data for game ${i} of ${gameMap.size}`);
+    // console.log(`Loading data for game ${i} of ${gameMap.size}`);
     const game = await fetchPlayByPlayData(String(gameId));
     if (game) await loadGame(game);
-    console.log(`Loaded data for game ${i} of ${gameMap.size}, ${Math.floor(i / gameMap.size * 100)}% complete`);
+    // console.log(`Loaded data for game ${i} of ${gameMap.size}, ${Math.floor(i / gameMap.size * 100)}% complete`);
 }
