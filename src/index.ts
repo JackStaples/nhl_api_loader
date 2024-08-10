@@ -3,8 +3,8 @@ import { fetchPlayByPlayData, fetchTeams, fetchTeamSchedule } from './api/api.js
 import { PlayByPlayResponse } from './types/PlayByPlay.types.js';
 import { exit } from 'process';
 
-const seasons = [2014];
-// const seasons = [2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023];
+// const seasons = [2009];
+const seasons = [2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023];
 
 async function loadInitialGameData(game: PlayByPlayResponse) {
     // console.log(`Loading initial data for game ${game.id}`);

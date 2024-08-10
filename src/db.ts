@@ -184,6 +184,8 @@ async function insertPersonPosition(personId: number, position: string, season: 
 
 export async function loadPlaysData(game: PlayByPlayResponse) {
     const { plays } = game;
+    if (!plays || plays.length === 0) return;
+    
     const insertionStrings: string[] = [];
     for (const play of plays ) {
         await insertPeriod(play);
@@ -196,7 +198,7 @@ export async function loadPlaysData(game: PlayByPlayResponse) {
         await pool.query(query);
         // console.log(`Play data inserted for game ${game.id}`);
     } catch (error) {
-        console.error('Error inserting play data:', error);
+        console.error('Error inserting play data:', error, query, game);
     }
 }
 
@@ -281,7 +283,7 @@ async function fetchAndLoadGameLog(playerId: number, season: number) {
     if (gameLogPlayerMap.get(`${playerId}-${season}`)) return;
     gameLogPlayerMap.set(`${playerId}-${season}`, true);
 
-    console.log(`loading game log for player ${playerId} for season ${season}`);
+    // console.log(`loading game log for player ${playerId} for season ${season}`);
     const gameLog = await fetchGameLogForPlayer(playerId.toString(), season);
     if (gameLog) {
         await loadGameLog(gameLog, playerId);
