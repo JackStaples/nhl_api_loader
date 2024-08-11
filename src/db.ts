@@ -2,7 +2,6 @@ import pg from 'pg';
 import config from './config.js';
 import { setupSql, insertGameQuery, insertTeamQuery, insertPersonQuery, insertPersonPositionQuery, insertSeasonQuery, insertPlayQuery, insertPeriodQuery, insterRosterSpotQuery, createPlayTypesViewQuery, createStatsMaterializedViewsQuery, insertGameLogQuery, insertGoalieGameLogQuery, createWeeklyStatMaterializedView } from './sql/scripts.js';
 import { Person, Play, PlayByPlayResponse, RosterSpot, Team } from './types/PlayByPlay.types.js';
-import { fetchGameLogForPlayer } from './api/api.js';
 import { GameLog, GameLogResponse, GoalieGameLog, isGoalieGameLog } from './types/GameLog.types.js';
 import { exit } from 'process';
 
@@ -265,33 +264,15 @@ export async function createStatsMaterializedViews() {
     }
 }
 
-export async function loadGameLogForPlayerMap(seasons: number[]) {
-    let querys = [];
-    for (const season of seasons) {
-        for (const playerId of personMap.keys()) {
-            querys.push(fetchAndLoadGameLog(playerId, season));
-
-            if (querys.length > 7) {
-                await Promise.all(querys);
-                querys = [];
-            }
-        }
-    }
-}
-
-async function fetchAndLoadGameLog(playerId: number, season: number) {
-    if (gameLogPlayerMap.get(`${playerId}-${season}`)) return;
-    gameLogPlayerMap.set(`${playerId}-${season}`, true);
-
-    // console.log(`loading game log for player ${playerId} for season ${season}`);
-    const gameLog = await fetchGameLogForPlayer(playerId.toString(), season);
-    if (gameLog) {
-        await loadGameLog(gameLog, playerId);
-    }
+export function getPersonMap() {
+    return personMap;
 }
 
 export async function loadGameLog(gameLog: GameLogResponse, playerId: number) {
     const { gameLog: games } = gameLog;
+    if (gameLogPlayerMap.has(`${playerId}-${gameLog.seasonId}`)) return;
+    gameLogPlayerMap.set(`${playerId}-${gameLog.seasonId}`, true);
+
     if (!games || games.length === 0) return;
     const insertionStrings: string[] = [];
     for (const game of games) {
@@ -306,6 +287,43 @@ export async function loadGameLog(gameLog: GameLogResponse, playerId: number) {
     }
     try {
         await pool.query(query);
+    } catch (error) {
+        console.log(query);
+        console.error('Error inserting game log data:', error);
+        return;
+    }
+}
+
+export async function loadGameLogs(gameLogs: {
+    gameLog: GameLogResponse,
+    playerId: number,
+}[]) {
+    if (!gameLogs || gameLogs.length === 0) return;
+    
+    const insertionStrings: string[] = [];
+    const goalieInsertionStrings: string[] = [];
+    for (const { gameLog, playerId } of gameLogs) {
+        const { gameLog: games } = gameLog;
+        if (!games || games.length === 0) return;
+
+        if (personPositionMap.has(playerId) && personPositionMap.get(playerId)?.has('G')) {
+            for (const game of games) {
+                goalieInsertionStrings.push(createGameLogInsertString(game, playerId));
+            }
+            continue;
+        }
+        
+        for (const game of games) {
+            insertionStrings.push(createGameLogInsertString(game, playerId));
+        }
+    }
+
+    const insertString = insertionStrings.join(',\n');
+    const query = insertGameLogQuery.replace('$insert', insertString);
+    const goalieQuery = insertGoalieGameLogQuery.replace('$insert', goalieInsertionStrings.join(',\n'));
+    try {
+        await pool.query(query);
+        await pool.query(goalieQuery);
     } catch (error) {
         console.log(query);
         console.error('Error inserting game log data:', error);

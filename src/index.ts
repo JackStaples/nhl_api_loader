@@ -1,10 +1,11 @@
-import { close, loadPlaysData, loadGameData, loadPersonData, loadSeasonData, loadTeamData, setupDatabase, loadRosterSpots, createPlayTypesView, createStatsMaterializedViews, loadGameLogForPlayerMap, loadWeeklyMaterializedView } from './db.js';
-import { fetchPlayByPlayData, fetchTeams, fetchTeamSchedule } from './api/api.js';
+import { close, loadPlaysData, loadGameData, loadPersonData, loadSeasonData, loadTeamData, setupDatabase, loadRosterSpots, createPlayTypesView, createStatsMaterializedViews, loadWeeklyMaterializedView, getPersonMap, loadGameLogs } from './db.js';
+import { fetchGameLogForPlayer, fetchPlayByPlayData, fetchPlayerLandingData, fetchTeams, fetchTeamSchedule } from './api/api.js';
 import { PlayByPlayResponse } from './types/PlayByPlay.types.js';
 import { exit } from 'process';
+import { GameLogResponse } from './types/GameLog.types.js';
 
-// const seasons = [2009];
-const seasons = [2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023];
+const seasons = [2023];
+// const seasons = [2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023];
 
 async function loadInitialGameData(game: PlayByPlayResponse) {
     // console.log(`Loading initial data for game ${game.id}`);
@@ -59,7 +60,9 @@ async function loadDatabase() {
     }
 
     console.log('begin loading player map');
-    await loadGameLogForPlayerMap(seasons);
+    const personMap = getPersonMap();
+
+    await loadPlayerData(Array.from(personMap.keys()));
     console.log('end loading player map');
 
     await createPlayTypesView();
@@ -82,3 +85,24 @@ async function fetchAndLoadGame(i: number, gameMap: Map<number, boolean>, gameId
     if (game) await loadGame(game);
     // console.log(`Loaded data for game ${i} of ${gameMap.size}, ${Math.floor(i / gameMap.size * 100)}% complete`);
 }
+
+async function loadPlayerData(playerIds: number[]) {
+    const gamelogs: {
+        gameLog: GameLogResponse,
+        playerId: number,
+    }[] = [];
+    for (const playerId of playerIds) {
+        const player = await fetchPlayerLandingData(playerId);
+        if (!player) return;
+
+        const { seasonTotals } = player;
+        for (const seasonTotal of seasonTotals) {
+            const { season } = seasonTotal;
+            const gameLog = await fetchGameLogForPlayer(playerId, season);
+            if (!gameLog) continue;
+            gamelogs.push({gameLog, playerId});
+        }
+    }
+    await loadGameLogs(gamelogs);
+}
+

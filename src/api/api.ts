@@ -5,6 +5,7 @@ import type { PlayByPlayResponse } from '../types/PlayByPlay.types.js';
 import { TeamsResponse } from '../types/Teams.types.js';
 import { ScheduleResponse } from '../types/Schedule.types.js';
 import { GameLogResponse } from '../types/GameLog.types.js';
+import { Player } from '../types/Player.types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -105,7 +106,7 @@ export async function fetchTeamSchedule(triCode: string, season: string): Promis
     return null;
 }
 
-export async function fetchGameLogForPlayer(playerId: string, season: number): Promise<GameLogResponse | null> {
+export async function fetchGameLogForPlayer(playerId: number, season: number): Promise<GameLogResponse | null> {
     // check if we have the data cached
     if (fs.existsSync(`${cacheDir}/${playerId}-${season}.json`)) {
         // console.log(`Found cached game log data for player ${playerId} season ${season}`);
@@ -126,6 +127,32 @@ export async function fetchGameLogForPlayer(playerId: string, season: number): P
         }
     } catch (error) {
         // console.error('Error fetching data:', error);
+    }
+
+    return null;
+}
+
+export async function fetchPlayerLandingData(playerId: number): Promise<Player | null> {
+    const url = `https://api-web.nhle.com/v1/player/${playerId}/landing`;
+
+    if (fs.existsSync(`${cacheDir}/${playerId}-landing.json`)) {
+        // console.log(`Found cached player landing data for player ${playerId}`);
+        const data = fs.readFileSync(`${cacheDir}/${playerId}-landing.json`, 'utf-8');
+        
+        // console.log(`Returning cached player landing data for player ${playerId}`);
+        return JSON.parse(data);
+    }
+
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        fs.writeFileSync(`${cacheDir}/${playerId}-landing.json`, JSON.stringify(data, null, 2));
+  
+        if (data) {
+            return data as Player;
+        }
+    } catch (error) {
+        console.error('Error fetching data:', error);
     }
 
     return null;
