@@ -1,6 +1,6 @@
 import pg from 'pg';
 import config from './config.js';
-import { setupSql, insertGameQuery, insertTeamQuery, insertSeasonQuery, insertPlayQuery, insertPeriodQuery, insterRosterSpotQuery, createPlayTypesViewQuery, createStatsMaterializedViewsQuery, insertGameLogQuery, insertGoalieGameLogQuery, createWeeklyStatMaterializedView } from './sql/scripts.js';
+import { setupSql, insertTeamQuery, insertSeasonQuery, insertPlayQuery, insertPeriodQuery, insterRosterSpotQuery, createPlayTypesViewQuery, createStatsMaterializedViewsQuery, insertGameLogQuery, insertGoalieGameLogQuery, createWeeklyStatMaterializedView } from './sql/scripts.js';
 import { Play, PlayByPlayResponse, Team } from './types/PlayByPlay.types.js';
 import { GameLog, GameLogResponse, GoalieGameLog, isGoalieGameLog } from './types/GameLog.types.js';
 import { exit } from 'process';
@@ -31,40 +31,8 @@ export async function setupDatabase() {
     }
 }
 
-export async function loadGameData(game: PlayByPlayResponse) {
-    // console.log(`Beginning to load game data for game ${game.id}`);
-    const insertString = getInsertGameString(game);
-    const query = insertGameQuery.replace('$insert', insertString);
-
-    try {
-        // console.log(`Inserting game data for game ${game.id}`);
-        await pool.query(query);
-        // console.log(`Game data inserted for game ${game.id}`);
-    } catch (error) {
-        console.error('Error inserting game data:', error, query);
-        exit(1);
-    }
-}
-
 function escapeStringForSQL(value: string): string {
     return value.replace(/'/g, '\'\'');
-}
-
-function getInsertGameString(game: PlayByPlayResponse) {
-    return `${game.id}, ${game.season}, ${game.gameType}, ${game.limitedScoring}, 
-            '${escapeStringForSQL(game.gameDate.toString())}', 
-            '${escapeStringForSQL(game.venue.default)}', 
-            '${escapeStringForSQL(game.venueLocation.default)}', 
-            '${escapeStringForSQL(game.startTimeUTC.toString())}', 
-            '${escapeStringForSQL(game.easternUTCOffset)}', 
-            '${escapeStringForSQL(game.venueUTCOffset)}', 
-            '${escapeStringForSQL(game.gameState)}', 
-            '${escapeStringForSQL(game.gameScheduleState)}', 
-            ${game.displayPeriod}, 
-            ${game.maxPeriods}, 
-            ${game.shootoutInUse}, 
-            ${game.otInUse}, 
-            ${game.regPeriods}`;
 }
 
 export function addPersonToMap(personId: number) {
@@ -293,6 +261,23 @@ export async function loadWeeklyMaterializedView() {
 
 export function createPlayerQuery(player: Player) {
     return `${player.playerId}, '${player.firstName.default}', '${player.lastName.default}', '${player.position}', '${player.heightInCentimeters}', '${player.weightInKilograms}', '${player.birthDate}', '${player.birthCountry}', '${player.shootsCatches}', '${player.draftDetails}', ${player.headshot}, ${player.heroImage}`;
+}
+
+export function createGameQuery(game: PlayByPlayResponse) {
+    return `${game.id}, ${game.season}, ${game.gameType}, ${game.limitedScoring}, 
+                '${escapeStringForSQL(game.gameDate.toString())}', 
+                '${escapeStringForSQL(game.venue.default)}', 
+                '${escapeStringForSQL(game.venueLocation.default)}', 
+                '${escapeStringForSQL(game.startTimeUTC.toString())}', 
+                '${escapeStringForSQL(game.easternUTCOffset)}', 
+                '${escapeStringForSQL(game.venueUTCOffset)}', 
+                '${escapeStringForSQL(game.gameState)}', 
+                '${escapeStringForSQL(game.gameScheduleState)}', 
+                ${game.displayPeriod}, 
+                ${game.maxPeriods}, 
+                ${game.shootoutInUse}, 
+                ${game.otInUse}, 
+                ${game.regPeriods}`;
 }
 
 export function close() {
