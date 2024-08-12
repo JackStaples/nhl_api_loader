@@ -4,12 +4,16 @@ import { insertGameQuery, insertPersonQuery, insertTeamQuery } from './sql/scrip
 import { PlayByPlayResponse, RosterSpot, Team } from './types/PlayByPlay.types.js';
 
 export default class QueryCreator {
+    private gameQueries: string[] = [];
+
     private playerQueries: string[] = [];
     private playerMap: Map<number, boolean> = new Map();
-    private gameQueries: string[] = [];
+    
 
     private teamMap: Map<number, boolean> = new Map();
     private teamQueries: string[] = [];
+
+    private seasonQueries: string[] = [];
 
     public async createQueriesForSeasons(seasons: number[]) {
         for (const season of seasons) {
@@ -21,6 +25,7 @@ export default class QueryCreator {
         console.log(`Fetching data for season ${season}`);
         const teams = await fetchTeams();
         if (!teams) return;
+        this.loadSeasonQuery(season);
         const seasonString = `${season}${season+1}`;
 
         const gameMap = new Set<number>();
@@ -40,11 +45,6 @@ export default class QueryCreator {
         console.log(`Fetched data for season ${season}`);
     }
 
-    private loadTeamQueryForGame(team: Team) {
-        if (this.teamMap.has(team.id)) return;
-        this.teamQueries.push(createTeamQuery(team));
-    }
-
     private async createQueriesForGame(gameId: number) {
         console.log(`Loading data for game ${gameId}`);
 
@@ -58,6 +58,15 @@ export default class QueryCreator {
         this.loadTeamQueryForGame(game.awayTeam);
 
         console.log(`Loaded data for game ${gameId}`);
+    }
+
+    private loadSeasonQuery(season: number) {
+        this.seasonQueries.push(`(${season}),`);
+    }
+
+    private loadTeamQueryForGame(team: Team) {
+        if (this.teamMap.has(team.id)) return;
+        this.teamQueries.push(createTeamQuery(team));
     }
 
     private loadGameQueryForGame(game: PlayByPlayResponse) {
