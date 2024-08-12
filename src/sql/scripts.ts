@@ -6,7 +6,7 @@ DROP TABLE IF EXISTS Team CASCADE;
 DROP TABLE IF EXISTS Period CASCADE;
 DROP TABLE IF EXISTS RosterSpot CASCADE;
 DROP TABLE IF EXISTS PersonPosition CASCADE;
-DROP TABLE IF EXISTS Person CASCADE;
+DROP TABLE IF EXISTS Player CASCADE;
 DROP TABLE IF EXISTS PositionCodes CASCADE;
 DROP TABLE IF EXISTS Season CASCADE;
 DROP TABLE IF EXISTS gameLog CASCADE;
@@ -42,10 +42,19 @@ CREATE TABLE Team (
     placeName VARCHAR(255)
 );
 
-CREATE TABLE Person (
+CREATE TABLE Player (
     id INT PRIMARY KEY,
     firstName VARCHAR(100) NOT NULL,
-    lastName VARCHAR(100) NOT NULL
+    lastName VARCHAR(100) NOT NULL,
+    position VARCHAR(1) NOT NULL,
+    heightInCentimeters INT NOT NULL,
+    weightInKilograms INT NOT NULL,
+    birthDate DATE NOT NULL,
+    birthCountry VARCHAR(50) NOT NULL,
+    shootsCatches VARCHAR(1) NOT NULL,
+    draftDetails JSONB,
+    headshot VARCHAR(255),
+    heroImage VARCHAR(255)
 );
 
 CREATE TABLE Season (
@@ -81,7 +90,7 @@ CREATE TABLE Play (
 
 CREATE TABLE RosterSpot (
     teamId INT REFERENCES Team(id),
-    playerId INT REFERENCES Person(id),
+    playerId INT REFERENCES Player(id),
     gameId int References Game(id),
     positionCode VARCHAR(2) NOT NULL,
     PRIMARY KEY (teamId, playerId, gameId)
@@ -101,7 +110,7 @@ CREATE TABLE PersonPosition (
     positionCode VARCHAR(1),
     season INT,
     PRIMARY KEY (personId, PositionCode, season),
-    FOREIGN KEY (personId) REFERENCES Person(id),
+    FOREIGN KEY (personId) REFERENCES Player(id),
     FOREIGN KEY (PositionCode) REFERENCES PositionCodes(PositionCode),
     FOREIGN KEY (season) REFERENCES Season(season)
 );
@@ -181,8 +190,8 @@ export const insertTeamQuery = `
 `;
 
 export const insertPersonQuery = `
-INSERT INTO Person (id, firstName, lastName)
-VALUES ($1, $2, $3)
+INSERT INTO Player (id, firstName, lastName, position, heightInCentimeters, weightInKilograms, birthDate, birthCountry, shootsCatches, draftDetails)
+VALUES ($insert)
 `;
     
 export const insertPersonPositionQuery = `

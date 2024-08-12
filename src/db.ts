@@ -1,9 +1,10 @@
 import pg from 'pg';
 import config from './config.js';
-import { setupSql, insertGameQuery, insertTeamQuery, insertPersonQuery, insertPersonPositionQuery, insertSeasonQuery, insertPlayQuery, insertPeriodQuery, insterRosterSpotQuery, createPlayTypesViewQuery, createStatsMaterializedViewsQuery, insertGameLogQuery, insertGoalieGameLogQuery, createWeeklyStatMaterializedView } from './sql/scripts.js';
-import { Person, Play, PlayByPlayResponse, RosterSpot, Team } from './types/PlayByPlay.types.js';
+import { setupSql, insertGameQuery, insertTeamQuery, insertSeasonQuery, insertPlayQuery, insertPeriodQuery, insterRosterSpotQuery, createPlayTypesViewQuery, createStatsMaterializedViewsQuery, insertGameLogQuery, insertGoalieGameLogQuery, createWeeklyStatMaterializedView } from './sql/scripts.js';
+import { Play, PlayByPlayResponse, Team } from './types/PlayByPlay.types.js';
 import { GameLog, GameLogResponse, GoalieGameLog, isGoalieGameLog } from './types/GameLog.types.js';
 import { exit } from 'process';
+import { Player } from './types/Player.types.js';
 
 const pool = new pg.Pool(config);
 
@@ -66,6 +67,14 @@ function getInsertGameString(game: PlayByPlayResponse) {
             ${game.regPeriods}`;
 }
 
+export function addPersonToMap(personId: number) {
+    if (
+        !personMap.has(personId)
+    ) {
+        personMap.set(personId, true);
+    }
+}
+
 
 export async function loadTeamData(game: PlayByPlayResponse) {
     // console.log(`Beginning to load team data for game ${game.id}`);
@@ -112,73 +121,6 @@ export async function loadSeasonData(season: number) {
             console.error('Error inserting season data:', error);
         }
     }
-}
-
-
-export async function loadPersonData(game: PlayByPlayResponse) {
-    const { rosterSpots } = game;
-    const querys = [];
-    for (const spot of rosterSpots) {
-        querys.push(insertPersonAndPosition(spot, game));
-    }
-    Promise.all(querys);
-}
-
-async function insertPersonAndPosition(spot: RosterSpot, game: PlayByPlayResponse) {
-    await insertPerson({
-        id: spot.playerId,
-        firstName: spot.firstName,
-        lastName: spot.lastName
-    });
-    await insertPersonPosition(spot.playerId, spot.positionCode, game.season.toString());
-}
-
-async function insertPerson(person: Person) {
-    if (
-        !personMap.has(person.id)
-    ) {
-        const personData = [
-            person.id,
-            person.firstName.default,
-            person.lastName.default
-        ];
-        try {
-            // console.log(`Inserting person data for person ${person.id}`);
-            await query(insertPersonQuery, personData);
-            // console.log(`Person data inserted for person ${person.id}`);
-            personMap.set(person.id, true);
-        } catch (error) {
-            console.error('Error inserting person data:', error);
-        }
-    }
-
-}
-
-async function insertPersonPosition(personId: number, position: string, season: string) {
-    if (
-        !personPositionMap.has(personId)
-    ) {
-        personPositionMap.set(personId, new Map());
-    }
-
-    if (
-        !personPositionMap.get(personId)?.has(position)
-    ) {
-        const personPositionData = [
-            personId,
-            position,
-            season
-        ];
-        try {
-            // console.log(`Inserting person position data for person ${personId}`);
-            await query(insertPersonPositionQuery, personPositionData);
-            // console.log(`Person position data inserted for person ${personId}`);
-            personPositionMap.get(personId)?.set(position, true);
-        } catch (error) {
-            console.error('Error inserting person position data:', error, insertPersonPositionQuery, personPositionData);
-        }
-    }
-
 }
 
 export async function loadPlaysData(game: PlayByPlayResponse) {
@@ -299,7 +241,7 @@ export async function loadGameLogs(gameLogs: {
     playerId: number,
 }[]) {
     if (!gameLogs || gameLogs.length === 0) return;
-    
+
     const insertionStrings: string[] = [];
     const goalieInsertionStrings: string[] = [];
     for (const { gameLog, playerId } of gameLogs) {
@@ -347,6 +289,10 @@ export async function loadWeeklyMaterializedView() {
     } catch (error) {
         console.error('Error creating season weeks materialized view:', error);
     }
+}
+
+export function createPlayerQuery(player: Player) {
+    return `${player.playerId}, '${player.firstName.default}', '${player.lastName.default}', '${player.position}', '${player.heightInCentimeters}', '${player.weightInKilograms}', '${player.birthDate}', '${player.birthCountry}', '${player.shootsCatches}', '${player.draftDetails}', ${player.headshot}, ${player.heroImage}`;
 }
 
 export function close() {

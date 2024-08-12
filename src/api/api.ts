@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 const cacheDir = path.resolve(__dirname, '../../cache'); // Adjust path as needed
 
 
-export async function fetchPlayByPlayData(game: string): Promise<PlayByPlayResponse | null> {
+export async function fetchPlayByPlayData(game: number): Promise<PlayByPlayResponse | null> {
     // console.log(`Fetching play-by-play data for game ${game}`);
     
     // check if we have the data cached
