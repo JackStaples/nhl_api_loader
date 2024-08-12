@@ -1,12 +1,15 @@
 import { fetchPlayByPlayData, fetchPlayerLandingData, fetchTeams, fetchTeamSchedule } from './api/api.js';
-import { createGameQuery, createPlayerQuery } from './db.js';
-import { insertGameQuery, insertPersonQuery } from './sql/scripts.js';
-import { PlayByPlayResponse, RosterSpot } from './types/PlayByPlay.types.js';
+import { createGameQuery, createPlayerQuery, createTeamQuery } from './db.js';
+import { insertGameQuery, insertPersonQuery, insertTeamQuery } from './sql/scripts.js';
+import { PlayByPlayResponse, RosterSpot, Team } from './types/PlayByPlay.types.js';
 
 export default class QueryCreator {
     private playerQueries: string[] = [];
     private playerMap: Map<number, boolean> = new Map();
     private gameQueries: string[] = [];
+
+    private teamMap: Map<number, boolean> = new Map();
+    private teamQueries: string[] = [];
 
     public async createQueriesForSeasons(seasons: number[]) {
         for (const season of seasons) {
@@ -34,8 +37,12 @@ export default class QueryCreator {
                 }
             }
         }
-
         console.log(`Fetched data for season ${season}`);
+    }
+
+    private loadTeamQueryForGame(team: Team) {
+        if (this.teamMap.has(team.id)) return;
+        this.teamQueries.push(createTeamQuery(team));
     }
 
     private async createQueriesForGame(gameId: number) {
@@ -45,17 +52,19 @@ export default class QueryCreator {
         if (!game) return;
 
         const { rosterSpots } = game;
-        await this.createPlayerQueries(rosterSpots);
-        this.createGameQueries(game);
+        this.loadGameQueryForGame(game);
+        await this.loadPlayerQueriesForGame(rosterSpots);
+        this.loadTeamQueryForGame(game.homeTeam);
+        this.loadTeamQueryForGame(game.awayTeam);
 
         console.log(`Loaded data for game ${gameId}`);
     }
 
-    private createGameQueries(game: PlayByPlayResponse) {
+    private loadGameQueryForGame(game: PlayByPlayResponse) {
         this.gameQueries.push(createGameQuery(game));
     }
 
-    private async createPlayerQueries(rosterSpots: RosterSpot[]) {
+    private async loadPlayerQueriesForGame(rosterSpots: RosterSpot[]) {
         for (const rosterSpot of rosterSpots) {
             const { playerId } = rosterSpot;
             if (this.playerMap.has(playerId)) return;
@@ -74,6 +83,10 @@ export default class QueryCreator {
 
     public getLoadPlayerQuery() {
         return insertPersonQuery.replace('$instert', this.playerQueries.join(','));
+    }
+
+    public getLoadTeamQuery() {
+        return insertTeamQuery.replace('$instert', this.teamQueries.join(','));
     }
 
 }

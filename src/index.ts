@@ -1,4 +1,4 @@
-import { close, loadPlaysData, loadSeasonData, loadTeamData, setupDatabase, loadRosterSpots, createPlayTypesView, createStatsMaterializedViews, loadWeeklyMaterializedView, getPersonMap, loadGameLogs } from './db.js';
+import { close, loadPlaysData, loadSeasonData, setupDatabase, loadRosterSpots, createPlayTypesView, createStatsMaterializedViews, loadWeeklyMaterializedView, getPersonMap, loadGameLogs } from './db.js';
 import { fetchGameLogForPlayer, fetchPlayByPlayData, fetchPlayerLandingData, fetchTeams, fetchTeamSchedule } from './api/api.js';
 import { PlayByPlayResponse } from './types/PlayByPlay.types.js';
 import { exit } from 'process';
@@ -11,7 +11,6 @@ const queryCreator = new QueryCreator();
 
 async function loadInitialGameData(game: PlayByPlayResponse) {
     // console.log(`Loading initial data for game ${game.id}`);
-    await loadTeamData(game);
     await loadSeasonData(game.season);
     // console.log(`Loaded initial data for game ${game.id}`);
 }

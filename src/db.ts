@@ -1,6 +1,6 @@
 import pg from 'pg';
 import config from './config.js';
-import { setupSql, insertTeamQuery, insertSeasonQuery, insertPlayQuery, insertPeriodQuery, insterRosterSpotQuery, createPlayTypesViewQuery, createStatsMaterializedViewsQuery, insertGameLogQuery, insertGoalieGameLogQuery, createWeeklyStatMaterializedView } from './sql/scripts.js';
+import { setupSql, insertSeasonQuery, insertPlayQuery, insertPeriodQuery, insterRosterSpotQuery, createPlayTypesViewQuery, createStatsMaterializedViewsQuery, insertGameLogQuery, insertGoalieGameLogQuery, createWeeklyStatMaterializedView } from './sql/scripts.js';
 import { Play, PlayByPlayResponse, Team } from './types/PlayByPlay.types.js';
 import { GameLog, GameLogResponse, GoalieGameLog, isGoalieGameLog } from './types/GameLog.types.js';
 import { exit } from 'process';
@@ -8,7 +8,6 @@ import { Player } from './types/Player.types.js';
 
 const pool = new pg.Pool(config);
 
-const teamMap: Map<number, boolean> = new Map();
 const personMap: Map<number, boolean> = new Map();
 const personPositionMap: Map<number, Map<string, boolean>> = new Map();
 const seasonMap: Map<number, boolean> = new Map();
@@ -40,36 +39,6 @@ export function addPersonToMap(personId: number) {
         !personMap.has(personId)
     ) {
         personMap.set(personId, true);
-    }
-}
-
-
-export async function loadTeamData(game: PlayByPlayResponse) {
-    // console.log(`Beginning to load team data for game ${game.id}`);
-    const { awayTeam, homeTeam } = game;
-    await insertTeam(awayTeam);
-    await insertTeam(homeTeam);
-}
-
-async function insertTeam(team: Team) {
-    if (
-        !teamMap.has(team.id)
-    ) {
-        const teamData = [
-            team.id,
-            team.name.default,
-            team.abbrev,
-            team.logo,
-            team.placeName?.default
-        ];
-        try {
-            // console.log(`Inserting team data for team ${team.id}`);
-            await query(insertTeamQuery, teamData);
-            // console.log(`Team data inserted for team ${team.id}`);
-            teamMap.set(team.id, true);
-        } catch (error) {
-            // console.error('Error inserting team data:', error);
-        }
     }
 }
 
@@ -278,6 +247,10 @@ export function createGameQuery(game: PlayByPlayResponse) {
                 ${game.shootoutInUse}, 
                 ${game.otInUse}, 
                 ${game.regPeriods}`;
+}
+
+export function createTeamQuery(team: Team) {
+    return `${team.id}, '${team.name.default}', '${team.abbrev}', '${team.logo}', '${team.placeName?.default}'`;
 }
 
 export function close() {

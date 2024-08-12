@@ -185,7 +185,7 @@ export const insertTeamQuery = `
       INSERT INTO Team (
         id, name, abbrev, logo, placeName
       ) VALUES (
-        $1, $2, $3, $4, $5
+        $value
       )
 `;
 
@@ -199,7 +199,7 @@ export const insertPersonPositionQuery = `
         VALUES ($1, $2, $3)
       `;
 
-export const insertSeasonQuery = 'INSERT INTO Season (season) VALUES ($1)';
+export const insertSeasonQuery = 'INSERT INTO Season (season) VALUES ($insert)';
 
 export const insertPlayQuery = `
       INSERT INTO Play (
