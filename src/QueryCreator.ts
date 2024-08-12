@@ -1,6 +1,6 @@
 import { fetchPlayByPlayData, fetchPlayerLandingData, fetchTeams, fetchTeamSchedule } from './api/api.js';
-import { createGameQuery, createPlayerQuery, createPlayQuery, createTeamQuery } from './db.js';
-import { insertGameQuery, insertPersonQuery, insertTeamQuery } from './sql/scripts.js';
+import { createGameQuery, createPlayerQuery, createPlayQuery, createRosterSpotQuery, createTeamQuery } from './db.js';
+import { insertGameQuery, insertPersonQuery, insertPlayQuery, insertSeasonQuery, insertTeamQuery, insterRosterSpotQuery } from './sql/scripts.js';
 import { PlayByPlayResponse, RosterSpot, Team } from './types/PlayByPlay.types.js';
 
 export default class QueryCreator {
@@ -17,7 +17,7 @@ export default class QueryCreator {
 
     private playsQueries: string[] = [];
 
-    private periodQueries: string[] = [];
+    private rosterSpotQueries: string[] = [];
 
     public async createQueriesForSeasons(seasons: number[]) {
         for (const season of seasons) {
@@ -65,6 +65,16 @@ export default class QueryCreator {
         console.log(`Loaded data for game ${gameId}`);
     }
 
+    private loadRosterSpotsForGame(game: PlayByPlayResponse) {
+        const { rosterSpots } = game;
+        if (!rosterSpots || rosterSpots.length === 0) return;
+
+        for (const spot of rosterSpots) {
+            this.rosterSpotQueries.push(createRosterSpotQuery(spot, game.id));
+        }
+    }
+
+
     private loadPlaysDataForGame(game: PlayByPlayResponse) {
         const { plays } = game;
         if (!plays || plays.length === 0) return;
@@ -110,6 +120,18 @@ export default class QueryCreator {
 
     public getLoadTeamQuery() {
         return insertTeamQuery.replace('$instert', this.teamQueries.join(','));
+    }
+
+    public getLoadSeasonQuery() {
+        return insertSeasonQuery.replace('$instert', this.seasonQueries.join(','));
+    }
+
+    public getLoadPlaysQuery() {
+        return insertPlayQuery.replace('$instert', this.playsQueries.join(','));
+    }
+
+    public getLoadRosterSpotQuery() {
+        return insterRosterSpotQuery.replace('$instert', this.rosterSpotQueries.join(','));
     }
 
 }

@@ -164,8 +164,6 @@ CREATE TABLE goalieGameLog (
 );
 `;
 
-
-
 export const insertGameQuery = `
     INSERT INTO Game (id, season, gameType, limitedScoring, gameDate, venue, venueLocation, startTimeUTC,
         easternUTCOffset, venueUTCOffset, gameState, gameScheduleState, displayPeriod,
@@ -174,12 +172,6 @@ export const insertGameQuery = `
         $insert
     )
 `;
-
-export const getTeamByIdQuery = `
-    SELECT * FROM Team
-    WHERE id = $1
-`;
-
 
 export const insertTeamQuery = `
       INSERT INTO Team (
@@ -191,7 +183,7 @@ export const insertTeamQuery = `
 
 export const insertPersonQuery = `
 INSERT INTO Player (id, firstName, lastName, position, heightInCentimeters, weightInKilograms, birthDate, birthCountry, shootsCatches, draftDetails)
-VALUES ($insert)
+VALUES $insert
 `;
     
 export const insertPersonPositionQuery = `
@@ -209,14 +201,9 @@ export const insertPlayQuery = `
         $insert;
     `;
 
-export const insertPeriodQuery = `
-        INSERT INTO Period (number, periodType)
-        VALUES ($1, $2)
-    `;
-
 export const insterRosterSpotQuery = `
         INSERT INTO RosterSpot (teamId, playerId, gameId, positionCode)
-        VALUES ($1, $2, $3, $4)
+        VALUES $insert
     `;
 
 export const insertGameLogQuery = `

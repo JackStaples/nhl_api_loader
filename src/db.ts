@@ -1,7 +1,7 @@
 import pg from 'pg';
 import config from './config.js';
 import { setupSql, insertSeasonQuery, insterRosterSpotQuery, createPlayTypesViewQuery, createStatsMaterializedViewsQuery, insertGameLogQuery, insertGoalieGameLogQuery, createWeeklyStatMaterializedView } from './sql/scripts.js';
-import { Play, PlayByPlayResponse, Team } from './types/PlayByPlay.types.js';
+import { Play, PlayByPlayResponse, RosterSpot, Team } from './types/PlayByPlay.types.js';
 import { GameLog, GameLogResponse, GoalieGameLog, isGoalieGameLog } from './types/GameLog.types.js';
 import { exit } from 'process';
 import { Player } from './types/Player.types.js';
@@ -187,11 +187,11 @@ export async function loadWeeklyMaterializedView() {
 }
 
 export function createPlayerQuery(player: Player) {
-    return `${player.playerId}, '${player.firstName.default}', '${player.lastName.default}', '${player.position}', '${player.heightInCentimeters}', '${player.weightInKilograms}', '${player.birthDate}', '${player.birthCountry}', '${player.shootsCatches}', '${player.draftDetails}', ${player.headshot}, ${player.heroImage}`;
+    return `(${player.playerId}, '${player.firstName.default}', '${player.lastName.default}', '${player.position}', '${player.heightInCentimeters}', '${player.weightInKilograms}', '${player.birthDate}', '${player.birthCountry}', '${player.shootsCatches}', '${player.draftDetails}', ${player.headshot}, ${player.heroImage})`;
 }
 
 export function createGameQuery(game: PlayByPlayResponse) {
-    return `${game.id}, ${game.season}, ${game.gameType}, ${game.limitedScoring}, 
+    return `(${game.id}, ${game.season}, ${game.gameType}, ${game.limitedScoring}, 
                 '${escapeStringForSQL(game.gameDate.toString())}', 
                 '${escapeStringForSQL(game.venue.default)}', 
                 '${escapeStringForSQL(game.venueLocation.default)}', 
@@ -204,15 +204,19 @@ export function createGameQuery(game: PlayByPlayResponse) {
                 ${game.maxPeriods}, 
                 ${game.shootoutInUse}, 
                 ${game.otInUse}, 
-                ${game.regPeriods}`;
+                ${game.regPeriods})`;
 }
 
 export function createTeamQuery(team: Team) {
-    return `${team.id}, '${team.name.default}', '${team.abbrev}', '${team.logo}', '${team.placeName?.default}'`;
+    return `(${team.id}, '${team.name.default}', '${team.abbrev}', '${team.logo}', '${team.placeName?.default})'`;
 }
 
 export function createPlayQuery(play: Play, gameId: number) {
     return `(${gameId}, ${play.periodDescriptor.number}, '${play.timeInPeriod}', '${play.timeRemaining}', '${play.situationCode}', '${play.homeTeamDefendingSide}', ${play.typeCode}, '${play.typeDescKey}', ${play.sortOrder}, '${play.details ? JSON.stringify(play.details):'{}'}')`;
+}
+
+export function createRosterSpotQuery(rosterSpot: RosterSpot, gameId: number) {
+    return `(${rosterSpot.teamId}, ${rosterSpot.playerId}, ${gameId}, '${rosterSpot.positionCode}')`;
 }
 
 export function close() {
