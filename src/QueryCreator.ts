@@ -1,5 +1,5 @@
 import { fetchPlayByPlayData, fetchPlayerLandingData, fetchTeams, fetchTeamSchedule } from './api/api.js';
-import { createGameQuery, createPlayerQuery, createTeamQuery } from './db.js';
+import { createGameQuery, createPlayerQuery, createPlayQuery, createTeamQuery } from './db.js';
 import { insertGameQuery, insertPersonQuery, insertTeamQuery } from './sql/scripts.js';
 import { PlayByPlayResponse, RosterSpot, Team } from './types/PlayByPlay.types.js';
 
@@ -14,6 +14,10 @@ export default class QueryCreator {
     private teamQueries: string[] = [];
 
     private seasonQueries: string[] = [];
+
+    private playsQueries: string[] = [];
+
+    private periodQueries: string[] = [];
 
     public async createQueriesForSeasons(seasons: number[]) {
         for (const season of seasons) {
@@ -56,8 +60,18 @@ export default class QueryCreator {
         await this.loadPlayerQueriesForGame(rosterSpots);
         this.loadTeamQueryForGame(game.homeTeam);
         this.loadTeamQueryForGame(game.awayTeam);
+        this.loadPlaysDataForGame(game);
 
         console.log(`Loaded data for game ${gameId}`);
+    }
+
+    private loadPlaysDataForGame(game: PlayByPlayResponse) {
+        const { plays } = game;
+        if (!plays || plays.length === 0) return;
+
+        for (const play of plays) {
+            this.playsQueries.push(createPlayQuery(play, game.id));
+        }
     }
 
     private loadSeasonQuery(season: number) {

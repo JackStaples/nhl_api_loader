@@ -1,4 +1,4 @@
-import { close, loadPlaysData, setupDatabase, loadRosterSpots, createPlayTypesView, createStatsMaterializedViews, loadWeeklyMaterializedView, getPersonMap, loadGameLogs } from './db.js';
+import { close, setupDatabase, loadRosterSpots, createPlayTypesView, createStatsMaterializedViews, loadWeeklyMaterializedView, getPersonMap, loadGameLogs } from './db.js';
 import { fetchGameLogForPlayer, fetchPlayByPlayData, fetchPlayerLandingData, fetchTeams, fetchTeamSchedule } from './api/api.js';
 import { PlayByPlayResponse } from './types/PlayByPlay.types.js';
 import { exit } from 'process';
@@ -10,7 +10,6 @@ const queryCreator = new QueryCreator();
 // const seasons = [2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023];
 
 async function loadDependantData(game: PlayByPlayResponse) {
-    await loadPlaysData(game);
     await loadRosterSpots(game);
 }
 

@@ -1,6 +1,6 @@
 import pg from 'pg';
 import config from './config.js';
-import { setupSql, insertSeasonQuery, insertPlayQuery, insertPeriodQuery, insterRosterSpotQuery, createPlayTypesViewQuery, createStatsMaterializedViewsQuery, insertGameLogQuery, insertGoalieGameLogQuery, createWeeklyStatMaterializedView } from './sql/scripts.js';
+import { setupSql, insertSeasonQuery, insterRosterSpotQuery, createPlayTypesViewQuery, createStatsMaterializedViewsQuery, insertGameLogQuery, insertGoalieGameLogQuery, createWeeklyStatMaterializedView } from './sql/scripts.js';
 import { Play, PlayByPlayResponse, Team } from './types/PlayByPlay.types.js';
 import { GameLog, GameLogResponse, GoalieGameLog, isGoalieGameLog } from './types/GameLog.types.js';
 import { exit } from 'process';
@@ -11,7 +11,6 @@ const pool = new pg.Pool(config);
 const personMap: Map<number, boolean> = new Map();
 const personPositionMap: Map<number, Map<string, boolean>> = new Map();
 const seasonMap: Map<number, boolean> = new Map();
-const periodMap: Map<number, boolean> = new Map();
 const gameLogPlayerMap: Map<string, boolean> = new Map();
 
 export function query<T>(text: string, params?: T[]) {
@@ -58,47 +57,6 @@ export async function loadSeasonData(season: number) {
             console.error('Error inserting season data:', error);
         }
     }
-}
-
-export async function loadPlaysData(game: PlayByPlayResponse) {
-    const { plays } = game;
-    if (!plays || plays.length === 0) return;
-    
-    const insertionStrings: string[] = [];
-    for (const play of plays ) {
-        await insertPeriod(play);
-        insertionStrings.push(getInsertPlayString(play, game.id));
-    }
-    const insertString = insertionStrings.join(',\n');
-    const query = insertPlayQuery.replace('$insert', insertString);
-    try {
-        // console.log(`Inserting play data for game ${game.id}`);
-        await pool.query(query);
-        // console.log(`Play data inserted for game ${game.id}`);
-    } catch (error) {
-        console.error('Error inserting play data:', error, query, game);
-    }
-}
-
-async function insertPeriod(play: Play) {
-    if (!periodMap.has(play.periodDescriptor.number)) {
-        const periodData = [
-            play.periodDescriptor.number,
-            play.periodDescriptor.periodType
-        ];
-        try {
-            // console.log(`Inserting period data for period ${play.periodDescriptor.number}`);
-            await query(insertPeriodQuery, periodData);
-            // console.log(`Period data inserted for period ${play.periodDescriptor.number}`);
-            periodMap.set(play.periodDescriptor.number, true);
-        } catch (error) {
-            console.error('Error inserting period data:', error);
-        }
-    }
-}
-
-function getInsertPlayString(play: Play, gameId: number) {
-    return `(${gameId}, ${play.periodDescriptor.number}, '${play.timeInPeriod}', '${play.timeRemaining}', '${play.situationCode}', '${play.homeTeamDefendingSide}', ${play.typeCode}, '${play.typeDescKey}', ${play.sortOrder}, '${play.details ? JSON.stringify(play.details):'{}'}')`;
 }
 
 export async function loadRosterSpots(game: PlayByPlayResponse) {
@@ -251,6 +209,10 @@ export function createGameQuery(game: PlayByPlayResponse) {
 
 export function createTeamQuery(team: Team) {
     return `${team.id}, '${team.name.default}', '${team.abbrev}', '${team.logo}', '${team.placeName?.default}'`;
+}
+
+export function createPlayQuery(play: Play, gameId: number) {
+    return `(${gameId}, ${play.periodDescriptor.number}, '${play.timeInPeriod}', '${play.timeRemaining}', '${play.situationCode}', '${play.homeTeamDefendingSide}', ${play.typeCode}, '${play.typeDescKey}', ${play.sortOrder}, '${play.details ? JSON.stringify(play.details):'{}'}')`;
 }
 
 export function close() {
