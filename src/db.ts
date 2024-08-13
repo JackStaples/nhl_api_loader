@@ -187,28 +187,15 @@ export async function loadWeeklyMaterializedView() {
 }
 
 export function createPlayerQuery(player: Player) {
-    return `(${player.playerId}, '${player.firstName.default}', '${player.lastName.default}', '${player.position}', '${player.heightInCentimeters}', '${player.weightInKilograms}', '${player.birthDate}', '${player.birthCountry}', '${player.shootsCatches}', '${player.draftDetails}', ${player.headshot}, ${player.heroImage})`;
+    return `(${player.playerId}, '${escapeStringForSQL(player.firstName.default)}', '${escapeStringForSQL(player.lastName.default)}', '${player.position}', '${player.heightInCentimeters}', '${player.weightInKilograms}', '${player.birthDate}', '${player.birthCountry}', '${player.shootsCatches}', '${player.draftDetails ? JSON.stringify(player.draftDetails) : '{}'}', '${player.headshot}', '${player.heroImage}')`;
 }
 
 export function createGameQuery(game: PlayByPlayResponse) {
-    return `(${game.id}, ${game.season}, ${game.gameType}, ${game.limitedScoring}, 
-                '${escapeStringForSQL(game.gameDate.toString())}', 
-                '${escapeStringForSQL(game.venue.default)}', 
-                '${escapeStringForSQL(game.venueLocation.default)}', 
-                '${escapeStringForSQL(game.startTimeUTC.toString())}', 
-                '${escapeStringForSQL(game.easternUTCOffset)}', 
-                '${escapeStringForSQL(game.venueUTCOffset)}', 
-                '${escapeStringForSQL(game.gameState)}', 
-                '${escapeStringForSQL(game.gameScheduleState)}', 
-                ${game.displayPeriod}, 
-                ${game.maxPeriods}, 
-                ${game.shootoutInUse}, 
-                ${game.otInUse}, 
-                ${game.regPeriods})`;
+    return `(${game.id}, ${game.season}, ${game.gameType}, ${game.limitedScoring},'${escapeStringForSQL(game.gameDate.toString())}','${escapeStringForSQL(game.venue.default)}','${escapeStringForSQL(game.venueLocation.default)}','${escapeStringForSQL(game.startTimeUTC.toString())}','${escapeStringForSQL(game.easternUTCOffset)}','${escapeStringForSQL(game.venueUTCOffset)}','${escapeStringForSQL(game.gameState)}','${escapeStringForSQL(game.gameScheduleState)}',${game.displayPeriod},${game.maxPeriods},${game.shootoutInUse},${game.otInUse},${game.regPeriods})`;
 }
 
 export function createTeamQuery(team: Team) {
-    return `(${team.id}, '${team.name.default}', '${team.abbrev}', '${team.logo}', '${team.placeName?.default})'`;
+    return `(${team.id}, '${team.name.default}', '${team.abbrev}', '${team.logo}', '${team.placeName?.default}')`;
 }
 
 export function createPlayQuery(play: Play, gameId: number) {

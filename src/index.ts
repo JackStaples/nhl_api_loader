@@ -3,6 +3,7 @@ import { fetchGameLogForPlayer, fetchPlayerLandingData, fetchTeams } from './api
 import { exit } from 'process';
 import { GameLogResponse } from './types/GameLog.types.js';
 import QueryCreator from './QueryCreator.js';
+import QueryRunner from './QueryRunner.js';
 
 const seasons = [2023];
 const queryCreator = new QueryCreator();
@@ -19,7 +20,8 @@ async function loadDatabase() {
     const teams = await fetchTeams();
     if (!teams) return;
 
-    queryCreator.createQueriesForSeasons(seasons);
+    await queryCreator.createQueriesForSeasons(seasons);
+    await QueryRunner.runQueries(queryCreator);
 
     console.log('begin loading player map');
     const personMap = getPersonMap();

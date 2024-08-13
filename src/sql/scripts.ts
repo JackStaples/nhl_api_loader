@@ -66,6 +66,12 @@ CREATE TABLE Period (
     periodType VARCHAR(10) NOT NULL
 );
 
+INSERT INTO Period (number, periodType) VALUES (1, 'REG');
+INSERT INTO Period (number, periodType) VALUES (2, 'REG');
+INSERT INTO Period (number, periodType) VALUES (3, 'REG');
+INSERT INTO Period (number, periodType) VALUES (4, 'OT');
+INSERT INTO Period (number, periodType) VALUES (5, 'SO');
+
 CREATE SEQUENCE play_id_seq
     START 1
     INCREMENT BY 1
@@ -168,21 +174,21 @@ export const insertGameQuery = `
     INSERT INTO Game (id, season, gameType, limitedScoring, gameDate, venue, venueLocation, startTimeUTC,
         easternUTCOffset, venueUTCOffset, gameState, gameScheduleState, displayPeriod,
         maxPeriods, shootoutInUse, otInUse, regPeriods
-    ) VALUES (
+    ) VALUES 
         $insert
-    )
+    
 `;
 
 export const insertTeamQuery = `
       INSERT INTO Team (
         id, name, abbrev, logo, placeName
-      ) VALUES (
-        $value
-      )
+      ) VALUES 
+        $insert
+      
 `;
 
-export const insertPersonQuery = `
-INSERT INTO Player (id, firstName, lastName, position, heightInCentimeters, weightInKilograms, birthDate, birthCountry, shootsCatches, draftDetails)
+export const insertPlayerQuery = `
+INSERT INTO Player (id, firstName, lastName, position, heightInCentimeters, weightInKilograms, birthDate, birthCountry, shootsCatches, draftDetails, headshot, heroImage)
 VALUES $insert
 `;
     
@@ -203,7 +209,7 @@ export const insertPlayQuery = `
 
 export const insterRosterSpotQuery = `
         INSERT INTO RosterSpot (teamId, playerId, gameId, positionCode)
-        VALUES $insert
+        VALUES $insert;
     `;
 
 export const insertGameLogQuery = `
