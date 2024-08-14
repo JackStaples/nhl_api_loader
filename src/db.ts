@@ -9,7 +9,6 @@ import { Player } from './types/Player.types.js';
 const pool = new pg.Pool(config);
 
 const personMap: Map<number, boolean> = new Map();
-const personPositionMap: Map<number, Map<string, boolean>> = new Map();
 const seasonMap: Map<number, boolean> = new Map();
 const gameLogPlayerMap: Map<string, boolean> = new Map();
 
@@ -134,16 +133,17 @@ export async function loadGameLog(gameLog: GameLogResponse, playerId: number) {
 export async function loadGameLogs(gameLogs: {
     gameLog: GameLogResponse,
     playerId: number,
+    position: string
 }[]) {
     if (!gameLogs || gameLogs.length === 0) return;
 
     const insertionStrings: string[] = [];
     const goalieInsertionStrings: string[] = [];
-    for (const { gameLog, playerId } of gameLogs) {
+    for (const { gameLog, playerId, position } of gameLogs) {
         const { gameLog: games } = gameLog;
-        if (!games || games.length === 0) return;
+        if (!games || games.length === 0) continue;
 
-        if (personPositionMap.has(playerId) && personPositionMap.get(playerId)?.has('G')) {
+        if (position === 'G') {
             for (const game of games) {
                 goalieInsertionStrings.push(createGameLogInsertString(game, playerId));
             }
@@ -162,7 +162,6 @@ export async function loadGameLogs(gameLogs: {
         await pool.query(query);
         await pool.query(goalieQuery);
     } catch (error) {
-        console.log(query);
         console.error('Error inserting game log data:', error);
         return;
     }

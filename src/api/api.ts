@@ -116,17 +116,20 @@ export async function fetchGameLogForPlayer(playerId: number, season: number): P
         return JSON.parse(data);
     }
 
-    const url = `https://api-web.nhle.com/v1/player/${playerId}/game-log/${season}${season+1}/2`;
+    const url = `https://api-web.nhle.com/v1/player/${playerId}/game-log/${season}/2`;
     try {
         const response = await fetch(url);
-        const data = await response.json();
-        fs.writeFileSync(`${cacheDir}/${playerId}-${season}.json`, JSON.stringify(data, null, 2));
-  
+        let data;
+        try {
+            data = await response.json();
+        } catch (error) {}
+        
         if (data) {
+            fs.writeFileSync(`${cacheDir}/${playerId}-${season}.json`, JSON.stringify(data, null, 2));
             return data as GameLogResponse;
         }
     } catch (error) {
-        // console.error('Error fetching data:', error);
+        console.error('Error fetching data:', error);
     }
 
     return null;

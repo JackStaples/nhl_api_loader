@@ -1,4 +1,4 @@
-import { close, setupDatabase, createPlayTypesView, createStatsMaterializedViews, loadWeeklyMaterializedView, getPersonMap, loadGameLogs } from './db.js';
+import { close, setupDatabase, createPlayTypesView, createStatsMaterializedViews, loadWeeklyMaterializedView, loadGameLogs } from './db.js';
 import { fetchGameLogForPlayer, fetchPlayerLandingData, fetchTeams } from './api/api.js';
 import { exit } from 'process';
 import { GameLogResponse } from './types/GameLog.types.js';
@@ -24,8 +24,7 @@ async function loadDatabase() {
     await QueryRunner.runQueries(queryCreator);
 
     console.log('begin loading player map');
-    const personMap = getPersonMap();
-    await loadPlayerData(Array.from(personMap.keys()));
+    await loadPlayerData(queryCreator.getPlayers());
     console.log('end loading player map');
 
     await createPlayTypesView();
@@ -44,22 +43,46 @@ console.log('End of run');
 
 
 async function loadPlayerData(playerIds: number[]) {
+
     const gamelogs: {
         gameLog: GameLogResponse,
         playerId: number,
+        position: string
     }[] = [];
+    
     for (const playerId of playerIds) {
         const player = await fetchPlayerLandingData(playerId);
         if (!player) return;
 
+        const position = player.position;
+
         const { seasonTotals } = player;
+        const seenSeasons = new Set();
         for (const seasonTotal of seasonTotals) {
+            if (seenSeasons.has(seasonTotal.season)) continue;
+            seenSeasons.add(seasonTotal.season);
+
+            if (seasonTotal.leagueAbbrev !== 'NHL') continue;
+
             const { season } = seasonTotal;
             const gameLog = await fetchGameLogForPlayer(playerId, season);
             if (!gameLog) continue;
-            gamelogs.push({gameLog, playerId});
+            
+            gamelogs.push({gameLog, playerId, position});
         }
     }
+
+    // log any duplicate entries in gamelogs
+    const seen = new Set();
+    const duplicates = gamelogs.filter((entry) => {
+        const duplicate = seen.has(`${entry.playerId}-${entry.gameLog.seasonId}}`);
+        seen.add(`${entry.playerId}-${entry.gameLog.seasonId}}`);
+        return duplicate;
+    });
+    if (duplicates.length > 0) {
+        console.log('Duplicate player entries:', duplicates);
+    }
+
     await loadGameLogs(gamelogs);
 }
 

@@ -5,6 +5,7 @@ import { PlayByPlayResponse, RosterSpot, Team } from './types/PlayByPlay.types.j
 
 export default class QueryCreator {
     private gameQueries: string[] = [];
+    private gameMap = new Set<number>();
 
     private playerQueries: string[] = [];
     private players: Set<number> = new Set();
@@ -32,7 +33,6 @@ export default class QueryCreator {
         this.loadSeasonQuery(season);
         const seasonString = `${season}${season+1}`;
 
-        const gameMap = new Set<number>();
         for (const team of teams.data) {
             const { triCode } = team;
             const schedule = await fetchTeamSchedule(triCode, seasonString);
@@ -40,8 +40,10 @@ export default class QueryCreator {
 
             for (const game of schedule.games) {
                 if (game.gameType !== 2) continue;
-                if (!gameMap.has(game.id)) {
-                    gameMap.add(game.id);
+
+                if (!this.gameMap.has(game.id)) {
+                    this.gameMap.add(game.id);
+
                     await this.createQueriesForGame(game.id);
                 }
             }
@@ -75,6 +77,10 @@ export default class QueryCreator {
 
     private async loadPlayerQueriesForGame(rosterSpots: RosterSpot[]) {
         await Promise.all(rosterSpots.map(async (rosterSpot) => {
+            if (rosterSpot.playerId === 0) {
+                console.log('Error loading player data', rosterSpot);
+                return;
+            }
             if (this.players.has(rosterSpot.playerId)) return;
             this.players.add(rosterSpot.playerId);
             
@@ -134,6 +140,10 @@ export default class QueryCreator {
 
     public getLoadRosterSpotQuery() {
         return insterRosterSpotQuery.replace('$insert', this.rosterSpotQueries.join(','));
+    }
+
+    public getPlayers() {
+        return Array.from(this.players);
     }
 
 }
