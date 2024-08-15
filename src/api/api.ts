@@ -116,7 +116,7 @@ export async function fetchGameLogForPlayer(playerId: number, season: number): P
         return JSON.parse(data);
     }
 
-    const url = `https://api-web.nhle.com/v1/player/${playerId}/game-log/${season}/2`;
+    const url = `https://api-web.nhle.com/v1/player/${playerId}/game-log/${season}${season+1}/2`;
     try {
         const response = await fetch(url);
         let data;
@@ -129,7 +129,7 @@ export async function fetchGameLogForPlayer(playerId: number, season: number): P
             return data as GameLogResponse;
         }
     } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching data:', error, url);
     }
 
     return null;
@@ -147,7 +147,7 @@ export async function fetchPlayerLandingData(playerId: number): Promise<Player |
     }
 
     try {
-        const response = await fetch(url);
+        const response = await fetch(url, {signal: AbortSignal.timeout(5000)});
         const data = await response.json();
         fs.writeFileSync(`${cacheDir}/${playerId}-landing.json`, JSON.stringify(data, null, 2));
   

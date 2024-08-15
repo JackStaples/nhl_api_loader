@@ -5,9 +5,9 @@ import { GameLogResponse } from './types/GameLog.types.js';
 import QueryCreator from './QueryCreator.js';
 import QueryRunner from './QueryRunner.js';
 
-const seasons = [2023];
+// before 2009 play by play data is not available, so blocked shots and hits are not available
+const seasons = [2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023];
 const queryCreator = new QueryCreator();
-// const seasons = [2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023];
 
 async function loadDatabase() {
     try {
@@ -20,13 +20,17 @@ async function loadDatabase() {
     const teams = await fetchTeams();
     if (!teams) return;
 
-    await queryCreator.createQueriesForSeasons(seasons);
-    await QueryRunner.runQueries(queryCreator);
+    for (const season of seasons) {
+        await queryCreator.createQueriesForSeason(season);
+        await QueryRunner.loadSeasonalQueries(queryCreator);
+    }
 
-    console.log('begin loading player map');
+    await QueryRunner.loadFullRunQueries(queryCreator);
+
+    console.log('begin loading player game logs data');
     await loadPlayerData(queryCreator.getPlayers());
-    console.log('end loading player map');
 
+    console.log('Creating views');
     await createPlayTypesView();
     await createStatsMaterializedViews();
     await loadWeeklyMaterializedView();
@@ -50,7 +54,7 @@ async function loadPlayerData(playerIds: number[]) {
         position: string
     }[] = [];
     
-    for (const playerId of playerIds) {
+    await Promise.all(playerIds.map(async (playerId) => {
         const player = await fetchPlayerLandingData(playerId);
         if (!player) return;
 
@@ -65,23 +69,14 @@ async function loadPlayerData(playerIds: number[]) {
             if (seasonTotal.leagueAbbrev !== 'NHL') continue;
 
             const { season } = seasonTotal;
-            const gameLog = await fetchGameLogForPlayer(playerId, season);
+
+            const seasonStart = parseInt(season.toString().slice(0, 4));
+            const gameLog = await fetchGameLogForPlayer(playerId, seasonStart);
             if (!gameLog) continue;
             
             gamelogs.push({gameLog, playerId, position});
         }
-    }
-
-    // log any duplicate entries in gamelogs
-    const seen = new Set();
-    const duplicates = gamelogs.filter((entry) => {
-        const duplicate = seen.has(`${entry.playerId}-${entry.gameLog.seasonId}}`);
-        seen.add(`${entry.playerId}-${entry.gameLog.seasonId}}`);
-        return duplicate;
-    });
-    if (duplicates.length > 0) {
-        console.log('Duplicate player entries:', duplicates);
-    }
+    }));
 
     await loadGameLogs(gamelogs);
 }

@@ -20,13 +20,7 @@ export default class QueryCreator {
 
     private rosterSpotQueries: string[] = [];
 
-    public async createQueriesForSeasons(seasons: number[]) {
-        for (const season of seasons) {
-            await this.createQueriesForSeason(season);
-        }
-    }
-
-    private async createQueriesForSeason(season: number) {
+    public async createQueriesForSeason(season: number) {
         console.log(`Fetching data for season ${season}`);
         const teams = await fetchTeams();
         if (!teams) return;
@@ -52,27 +46,24 @@ export default class QueryCreator {
     }
 
     private async createQueriesForGame(gameId: number) {
-        // console.log(`Loading data for game ${gameId}`);
-
         const game = await fetchPlayByPlayData(gameId);
         if (!game) return;
 
         this.loadGameQueryForGame(game);
         const { rosterSpots } = game;
-        await this.loadPlayerQueriesForGame(rosterSpots);
+        await Promise.all([this.loadPlaysDataForGame(game), 
+            this.loadPlayerQueriesForGame(rosterSpots),
+            this.loadRosterSpotsForGame(rosterSpots, game.id)
+        ]);
         this.loadTeamQueryForGame(game.homeTeam);
         this.loadTeamQueryForGame(game.awayTeam);
-        this.loadPlaysDataForGame(game);
-        this.loadRosterSpotsForGame(rosterSpots, game.id);
-
-        // console.log(`Loaded data for game ${gameId}`);
     }
 
-    private loadRosterSpotsForGame(rosterSpots: RosterSpot[], gameId: number) {
+    private async loadRosterSpotsForGame(rosterSpots: RosterSpot[], gameId: number) {
         if (!rosterSpots || rosterSpots.length === 0) return;
-        for (const rosterSpot of rosterSpots) {
-            this.rosterSpotQueries.push(createRosterSpotQuery(rosterSpot, gameId));
-        }
+        await Promise.all(rosterSpots.map(async (rosterSpot) => 
+            this.rosterSpotQueries.push(createRosterSpotQuery(rosterSpot, gameId))
+        ));
     }
 
     private async loadPlayerQueriesForGame(rosterSpots: RosterSpot[]) {
@@ -94,13 +85,13 @@ export default class QueryCreator {
         }));
     }
 
-    private loadPlaysDataForGame(game: PlayByPlayResponse) {
+    private async loadPlaysDataForGame(game: PlayByPlayResponse) {
         const { plays } = game;
         if (!plays || plays.length === 0) return;
 
-        for (const play of plays) {
-            this.playsQueries.push(createPlayQuery(play, game.id));
-        }
+        await Promise.all(plays.map(async (play) => 
+            this.playsQueries.push(createPlayQuery(play, game.id))
+        ));
     }
 
     private loadSeasonQuery(season: number) {
@@ -122,6 +113,11 @@ export default class QueryCreator {
         return insertGameQuery.replace('$insert', this.gameQueries.join(','));
     }
 
+    public resetGameQueries() {
+        this.gameQueries = [];
+        this.gameMap = new Set();
+    }
+
     public getLoadPlayerQuery() {
         return insertPlayerQuery.replace('$insert', this.playerQueries.join(','));
     }
@@ -138,8 +134,16 @@ export default class QueryCreator {
         return insertPlayQuery.replace('$insert', this.playsQueries.join(','));
     }
 
+    public resetPlaysQueries() {
+        this.playsQueries = [];
+    }
+
     public getLoadRosterSpotQuery() {
         return insterRosterSpotQuery.replace('$insert', this.rosterSpotQueries.join(','));
+    }
+
+    public resetRosterSpotQueries() {
+        this.rosterSpotQueries = [];
     }
 
     public getPlayers() {

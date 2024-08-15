@@ -102,7 +102,7 @@ export async function loadWeeklyMaterializedView() {
 }
 
 export function createPlayerQuery(player: Player) {
-    return `(${player.playerId}, '${escapeStringForSQL(player.firstName.default)}', '${escapeStringForSQL(player.lastName.default)}', '${player.position}', '${player.heightInCentimeters}', '${player.weightInKilograms}', '${player.birthDate}', '${player.birthCountry}', '${player.shootsCatches}', '${player.draftDetails ? JSON.stringify(player.draftDetails) : '{}'}', '${player.headshot}', '${player.heroImage}')`;
+    return `(${player.playerId}, '${escapeStringForSQL(player.firstName.default)}', '${escapeStringForSQL(player.lastName.default)}', '${player.position}', '${player.heightInCentimeters ?? 0}', '${player.weightInKilograms ?? 0}', '${player.birthDate}', '${player.birthCountry}', '${player.shootsCatches}', '${player.draftDetails ? JSON.stringify(player.draftDetails) : '{}'}', '${player.headshot}', '${player.heroImage}')`;
 }
 
 export function createGameQuery(game: PlayByPlayResponse) {

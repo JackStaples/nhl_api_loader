@@ -95,8 +95,8 @@ CREATE TABLE Play (
 
 
 CREATE TABLE RosterSpot (
-    teamId INT REFERENCES Team(id),
-    playerId INT REFERENCES Player(id),
+    teamId INT,
+    playerId INT,
     gameId int References Game(id),
     positionCode VARCHAR(2) NOT NULL,
     PRIMARY KEY (teamId, playerId, gameId)
