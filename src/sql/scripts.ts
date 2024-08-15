@@ -617,6 +617,7 @@ SELECT
 	blockedShots as blockedShotPoints,
 	powerPlayPoints * 0.5 as powerplayPointPoints,
 	hits * 0.5 AS hitPoints,
-	(goals * 6) + (assists * 4) + shots + blockedShots + (powerPlayPoints * 0.5) + (hits * 0.5) AS totalPoints
+	(goals * 6) + (assists * 4) + shots + blockedShots + (powerPlayPoints * 0.5) + (hits * 0.5) AS totalPoints,
+	gamesplayed
 FROM weeklystats;`;
 }
