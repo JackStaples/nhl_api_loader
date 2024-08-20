@@ -480,6 +480,10 @@ ORDER BY totalpoints DESC;
 
 export function createWeeklyStatMaterializedView() {
     return `
+DROP MATERIALIZED VIEW IF EXISTS playerdescriptors;
+DROP MATERIALIZED VIEW IF EXISTS seasonfantasystatsplayerinfo;
+DROP MATERIALIZED VIEW IF EXISTS previousseason;
+DROP MATERIALIZED VIEW IF EXISTS seasongamesplayed;
 DROP MATERIALIZED VIEW IF EXISTS weeklyfantasystats;
 DROP MATERIALIZED VIEW IF EXISTS weeklystats;
 DROP MATERIALIZED VIEW IF EXISTS weeklyblockstats;
@@ -619,5 +623,68 @@ SELECT
 	hits * 0.5 AS hitPoints,
 	(goals * 6) + (assists * 4) + shots + blockedShots + (powerPlayPoints * 0.5) + (hits * 0.5) AS totalPoints,
 	gamesplayed
-FROM weeklystats;`;
+FROM weeklystats;
+ 
+CREATE MATERIALIZED VIEW seasongamesplayed AS
+	SELECT playerId, season, count(1) AS gamesplayed FROM rosterspot rs
+	INNER JOIN game ON game.id = rs.gameid
+	GROUP BY playerId, season;
+    
+CREATE MATERIALIZED VIEW previousseason AS
+SELECT DISTINCT
+	sfs.season AS current_season,
+	CAST(CAST(CAST(LEFT(CAST(sfs.season AS VARCHAR), 4) AS INTEGER) - 1 AS VARCHAR) || CAST(RIGHT(CAST(sfs.season AS VARCHAR), 4) AS INTEGER) - 1 AS INTEGER) AS previous_season
+FROM seasonfantasystats sfs
+
+CREATE MATERIALIZED VIEW seasonfantasystatsplayerinfo AS
+	SELECT 
+		sfs.personId, sfs.season, sfs.goalpoints, sfs.assistpoints, sfs.powerplaypoints, sfs.shotpoints, sfs.blockedshotpoints, sfs.hitpoints, sfs.totalpoints, 
+		birthdate, position, EXTRACT(year from DATE_TRUNC('year', AGE(DATE(LEFT(CAST(sfs.season AS VARCHAR), 4) || '-10-10'), player.birthdate) + interval '6 mons')) AS age,
+		COALESCE(CAST(draftdetails->'overallPick' AS integer), 0) AS draftPosition, ROW_NUMBER() OVER(PARTITION BY sfs.personId ORDER BY sfs.season) AS yearsInLeague,
+		heightInCentimeters, weightInKilograms, COALESCE(sgp.gamesplayed, 0) AS gamesPlayedPrev,
+		COALESCE(sfs2.goalpoints, 0) AS goalpointsprev, COALESCE(sfs2.assistpoints, 0) AS assistpointsprev, COALESCE(sfs2.powerplaypoints, 0) AS powerplaypointsprev,
+		COALESCE(sfs2.shotpoints, 0) AS shotpointsprev, COALESCE(sfs2.blockedshotpoints, 0) AS blockedshotpointsprev, COALESCE(sfs2.hitpoints, 0) AS hitpointsprev, 
+		COALESCE(sfs2.totalpoints, 0) AS totalpointsprev
+	FROM seasonfantasystats sfs
+	INNER JOIN player ON player.id = sfs.personid
+	JOIN previousseason ps ON ps.current_season = sfs.season
+	LEFT JOIN seasongamesplayed sgp ON sgp.playerId = player.id AND sgp.season = ps.previous_season
+	LEFT JOIN seasonfantasystats sfs2 ON sfs.personId = sfs2.personId AND sfs2.season = ps.previous_season
+
+    CREATE MATERIALIZED VIEW playerdescriptors AS
+	SELECT 
+		sfs.personId, 
+		sfs.season, 
+		birthdate, 
+		position, 
+		EXTRACT(year from DATE_TRUNC('year', AGE(DATE(LEFT(CAST(sfs.season AS VARCHAR), 4) || '-10-10'), player.birthdate) + interval '6 mons')) AS age,
+		COALESCE(CAST(draftdetails->'overallPick' AS integer), 292) AS draftPosition, 
+		ROW_NUMBER() OVER(PARTITION BY sfs.personId ORDER BY sfs.season ASC) AS yearsInLeague,
+		heightInCentimeters, 
+		weightInKilograms, COALESCE(sgp.gamesplayed, 0) AS gamesPlayedPrev,
+		COALESCE(sfs2.goalpoints, 0) AS goalpointsprev, 
+		COALESCE(sfs2.assistpoints, 0) AS assistpointsprev, 
+		COALESCE(sfs2.powerplaypoints, 0) AS powerplaypointsprev,
+		COALESCE(sfs2.shotpoints, 0) AS shotpointsprev, 
+		COALESCE(sfs2.blockedshotpoints, 0) AS blockedshotpointsprev, 
+		COALESCE(sfs2.hitpoints, 0) AS hitpointsprev, 
+		COALESCE(sfs2.totalpoints, 0) AS totalpointsprev, 
+		COALESCE(CAST(sfs2.goalpoints AS DECIMAL)/sgp.gamesplayed, 0) AS goalpointspergameprev, 
+		COALESCE(CAST(sfs2.assistpoints AS DECIMAL)/sgp.gamesplayed, 0) AS assistpointspergameprev, 
+		COALESCE(CAST(sfs2.powerplaypoints AS DECIMAL)/sgp.gamesplayed, 0) AS powerplaypointspergameprev,
+		COALESCE(CAST(sfs2.shotpoints AS DECIMAL)/sgp.gamesplayed, 0) AS shotpointspergameprev, 
+		COALESCE(CAST(sfs2.blockedshotpoints AS DECIMAL)/sgp.gamesplayed, 0) AS blockedshotpointspergameprev, 
+		COALESCE(CAST(sfs2.hitpoints AS DECIMAL)/sgp.gamesplayed, 0) AS hitpointspergameprev, 
+		COALESCE(CAST(sfs2.totalpoints AS DECIMAL)/sgp.gamesplayed, 0) AS totalpointspergameprev, 
+		ROW_NUMBER() OVER(PARTITION BY sfs2.season, position ORDER BY COALESCE(sfs2.totalPoints, 0) DESC, sfs2.personid) AS positionfinishprev
+	FROM seasonfantasystats sfs
+	JOIN player ON player.id = sfs.personid
+	LEFT JOIN previousseason ps ON ps.current_season = sfs.season
+	INNER JOIN seasongamesplayed sgp ON sgp.playerId = player.id AND sgp.season = ps.previous_season
+	LEFT JOIN seasonfantasystats sfs2 ON player.id = sfs2.personId AND sfs2.season = ps.previous_season
+	WHERE sfs.season <> 20092010;
+   `;
+
+
+
 }
