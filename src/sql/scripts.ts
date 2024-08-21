@@ -273,11 +273,30 @@ SELECT DISTINCT typeCode, typeDescKey
 FROM Play;`;
 
 export const createStatsMaterializedViewsQuery = `
-DROP MATERIALIZED VIEW IF EXISTS public.seasonFantasyStats;
+
+
+`;
+
+
+export function createWeeklyStatMaterializedView() {
+    return `DROP MATERIALIZED VIEW IF EXISTS public.breakoutseasons;
 DROP MATERIALIZED VIEW IF EXISTS public.seasonStats;
+DROP MATERIALIZED VIEW IF EXISTS public.seasonGoals;
+DROP MATERIALIZED VIEW IF EXISTS seasonfantasystatsplayerinfo;
+DROP MATERIALIZED VIEW IF EXISTS weeklyfantasystats;
+DROP MATERIALIZED VIEW IF EXISTS weeklystats;
+DROP MATERIALIZED VIEW IF EXISTS weeklyblockstats;
+DROP MATERIALIZED VIEW IF EXISTS weeklyhitstats;
+DROP MATERIALIZED VIEW IF EXISTS weeklygamelogstats;
+DROP MATERIALIZED VIEW IF EXISTS seasonweeks;
+DROP MATERIALIZED VIEW IF EXISTS seasonfantasypredictor;
+DROP MATERIALIZED VIEW IF EXISTS playerdescriptors;
+DROP MATERIALIZED VIEW IF EXISTS seasongamesplayed;
+DROP MATERIALIZED VIEW IF EXISTS previousseason;
+DROP MATERIALIZED VIEW IF EXISTS public.seasonFantasyStats;
 DROP MATERIALIZED VIEW IF EXISTS public.seasonStatsGameLog;
 
-DROP MATERIALIZED VIEW IF EXISTS public.seasonGoals;
+
 CREATE MATERIALIZED VIEW IF NOT EXISTS public.seasonGoals
 TABLESPACE pg_default
 AS
@@ -405,40 +424,34 @@ FROM gamelog
 INNER JOIN game ON gameid = game.id
 GROUP BY playerid, season;
 
+CREATE MATERIALIZED VIEW seasongamesplayed AS
+	SELECT playerId, season, count(1) AS gamesplayed FROM rosterspot rs
+	INNER JOIN game ON game.id = rs.gameid
+	GROUP BY playerId, season;
+
 CREATE MATERIALIZED VIEW IF NOT EXISTS public.seasonFantasyStats
 TABLESPACE pg_default
 AS
-SELECT 
-	playerSeasons.playerId AS personId,
-	playerSeasons.season,
-	COALESCE(goals, 0) * 6 AS goalPoints,
-	COALESCE(assists, 0) * 4 AS assistPoints,
-	(COALESCE(powerPlayPoints, 0) * 0.5) AS powerPlayPoints,
-	COALESCE(shots, 0) AS shotPoints,
-	COALESCE(seasonBlockedShots.blocks, 0) AS blockedShotPoints,
-	COALESCE(seasonhits.hits, 0) * 0.5 AS hitpoints,
-	(COALESCE(goals, 0) * 6) + 
-	(COALESCE(assists, 0) * 4) + 
-	(COALESCE(powerPlayPoints, 0) * 0.5) +
-	COALESCE(shots, 0) +
-	COALESCE(seasonBlockedShots.blocks, 0) +
-	(COALESCE(seasonhits.hits, 0) * 0.5) AS totalPoints
-FROM ( 
-	SELECT DISTINCT season, playerId FROM game
-	INNER JOIN rosterspot
-	ON rosterspot.gameid = game.id
-  WHERE positioncode <> 'G'
-) AS playerSeasons
-LEFT JOIN seasonhits
-	ON playerSeasons.playerId = seasonhits.personId 
-	AND playerSeasons.season = seasonhits.season
-LEFT JOIN seasonBlockedShots
-	ON playerSeasons.playerId = seasonBlockedShots.personId 
-	AND playerSeasons.season = seasonBlockedShots.season
-LEFT JOIN seasonStatsGameLog
-	ON playerSeasons.playerId = seasonStatsGameLog.personid 
-	AND playerSeasons.season = seasonStatsGameLog.season
-ORDER BY personid, season;
+ SELECT playerseasons.playerid AS personid,
+    playerseasons.season,
+	sgp.gamesplayed,
+    COALESCE(seasonstatsgamelog.goals, 0::bigint) * 6 AS goalpoints,
+    COALESCE(seasonstatsgamelog.assists, 0::bigint) * 4 AS assistpoints,
+    COALESCE(seasonstatsgamelog.powerplaypoints, 0::bigint)::numeric * 0.5 AS powerplaypoints,
+    COALESCE(seasonstatsgamelog.shots, 0::bigint) AS shotpoints,
+    COALESCE(seasonblockedshots.blocks, 0::bigint) AS blockedshotpoints,
+    COALESCE(seasonhits.hits, 0::bigint)::numeric * 0.5 AS hitpoints,
+    (COALESCE(seasonstatsgamelog.goals, 0::bigint) * 6 + COALESCE(seasonstatsgamelog.assists, 0::bigint) * 4)::numeric + COALESCE(seasonstatsgamelog.powerplaypoints, 0::bigint)::numeric * 0.5 + COALESCE(seasonstatsgamelog.shots, 0::bigint)::numeric + COALESCE(seasonblockedshots.blocks, 0::bigint)::numeric + COALESCE(seasonhits.hits, 0::bigint)::numeric * 0.5 AS totalpoints
+   FROM ( SELECT DISTINCT game.season,
+            rosterspot.playerid
+           FROM game
+             JOIN rosterspot ON rosterspot.gameid = game.id
+          WHERE rosterspot.positioncode::text <> 'G'::text) playerseasons
+     LEFT JOIN seasonhits ON playerseasons.playerid = seasonhits.personid AND playerseasons.season = seasonhits.season
+     LEFT JOIN seasonblockedshots ON playerseasons.playerid = seasonblockedshots.personid AND playerseasons.season = seasonblockedshots.season
+     LEFT JOIN seasonstatsgamelog ON playerseasons.playerid = seasonstatsgamelog.personid AND playerseasons.season = seasonstatsgamelog.season
+	 LEFT JOIN seasongamesplayed sgp ON playerseasons.playerid = sgp.playerid AND sgp.season = playerseasons.season
+  ORDER BY playerseasons.playerid, playerseasons.season;
 
 DROP MATERIALIZED VIEW IF EXISTS goalieSeasonFantasyStats;
 DROP MATERIALIZED VIEW IF EXISTS goalieSeasonStats;
@@ -475,21 +488,6 @@ SELECT
 	((wins * 6) + (saves * 0.6) + (goalsAgainst * -3)) AS totalPoints
 FROM goalieseasonstats
 ORDER BY totalpoints DESC;
-`;
-
-
-export function createWeeklyStatMaterializedView() {
-    return `
-DROP MATERIALIZED VIEW IF EXISTS playerdescriptors;
-DROP MATERIALIZED VIEW IF EXISTS seasonfantasystatsplayerinfo;
-DROP MATERIALIZED VIEW IF EXISTS previousseason;
-DROP MATERIALIZED VIEW IF EXISTS seasongamesplayed;
-DROP MATERIALIZED VIEW IF EXISTS weeklyfantasystats;
-DROP MATERIALIZED VIEW IF EXISTS weeklystats;
-DROP MATERIALIZED VIEW IF EXISTS weeklyblockstats;
-DROP MATERIALIZED VIEW IF EXISTS weeklyhitstats;
-DROP MATERIALIZED VIEW IF EXISTS eklygamelogstats;
-DROP MATERIALIZED VIEW IF EXISTS seasonweeks;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS seasonweeks AS
  SELECT season,
@@ -624,17 +622,12 @@ SELECT
 	(goals * 6) + (assists * 4) + shots + blockedShots + (powerPlayPoints * 0.5) + (hits * 0.5) AS totalPoints,
 	gamesplayed
 FROM weeklystats;
- 
-CREATE MATERIALIZED VIEW seasongamesplayed AS
-	SELECT playerId, season, count(1) AS gamesplayed FROM rosterspot rs
-	INNER JOIN game ON game.id = rs.gameid
-	GROUP BY playerId, season;
     
 CREATE MATERIALIZED VIEW previousseason AS
 SELECT DISTINCT
 	sfs.season AS current_season,
 	CAST(CAST(CAST(LEFT(CAST(sfs.season AS VARCHAR), 4) AS INTEGER) - 1 AS VARCHAR) || CAST(RIGHT(CAST(sfs.season AS VARCHAR), 4) AS INTEGER) - 1 AS INTEGER) AS previous_season
-FROM seasonfantasystats sfs
+FROM seasonfantasystats sfs;
 
 CREATE MATERIALIZED VIEW seasonfantasystatsplayerinfo AS
 	SELECT 
@@ -649,9 +642,21 @@ CREATE MATERIALIZED VIEW seasonfantasystatsplayerinfo AS
 	INNER JOIN player ON player.id = sfs.personid
 	JOIN previousseason ps ON ps.current_season = sfs.season
 	LEFT JOIN seasongamesplayed sgp ON sgp.playerId = player.id AND sgp.season = ps.previous_season
-	LEFT JOIN seasonfantasystats sfs2 ON sfs.personId = sfs2.personId AND sfs2.season = ps.previous_season
+	LEFT JOIN seasonfantasystats sfs2 ON sfs.personId = sfs2.personId AND sfs2.season = ps.previous_season;
 
-    CREATE MATERIALIZED VIEW playerdescriptors AS
+CREATE MATERIALIZED VIEW playerdescriptors AS
+WITH cumulative_games AS (
+    SELECT
+        sgp.playerId,
+        sgp.season,
+        COALESCE(SUM(sgp.gamesplayed) OVER (
+            PARTITION BY sgp.playerId 
+            ORDER BY sgp.season ASC 
+            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+        ), 0) AS totalgamesplayed
+    FROM
+        seasongamesplayed sgp
+)
 	SELECT 
 		sfs.personId, 
 		sfs.season, 
@@ -662,6 +667,7 @@ CREATE MATERIALIZED VIEW seasonfantasystatsplayerinfo AS
 		ROW_NUMBER() OVER(PARTITION BY sfs.personId ORDER BY sfs.season ASC) AS yearsInLeague,
 		heightInCentimeters, 
 		weightInKilograms, COALESCE(sgp.gamesplayed, 0) AS gamesPlayedPrev,
+		 COALESCE(cg.totalgamesplayed, 0) AS totalgamesplayed, 
 		COALESCE(sfs2.goalpoints, 0) AS goalpointsprev, 
 		COALESCE(sfs2.assistpoints, 0) AS assistpointsprev, 
 		COALESCE(sfs2.powerplaypoints, 0) AS powerplaypointsprev,
@@ -682,7 +688,86 @@ CREATE MATERIALIZED VIEW seasonfantasystatsplayerinfo AS
 	LEFT JOIN previousseason ps ON ps.current_season = sfs.season
 	INNER JOIN seasongamesplayed sgp ON sgp.playerId = player.id AND sgp.season = ps.previous_season
 	LEFT JOIN seasonfantasystats sfs2 ON player.id = sfs2.personId AND sfs2.season = ps.previous_season
+	LEFT JOIN cumulative_games cg ON cg.playerId = sfs.personId AND cg.season = sfs.season
 	WHERE sfs.season <> 20092010;
+
+CREATE MATERIALIZED VIEW seasonfantasypredictor AS
+SELECT 
+	sfs.personid,
+	sfs.season,
+	goalpoints,
+	assistpoints,
+	powerplaypoints,
+	shotpoints,
+	blockedshotpoints,
+	hitpoints, 
+	totalpoints,
+	birthdate,
+	position,
+	age,
+	draftposition,
+	yearsinleague,
+	heightincentimeters,
+	weightinkilograms,
+	totalgamesplayed,
+	gamesplayedprev,
+	goalpointsprev,
+	assistpointsprev,
+	powerplaypointsprev,
+	shotpointsprev,
+	blockedshotpointsprev,
+	hitpointsprev,
+	totalpointsprev,
+	goalpointspergameprev,
+	assistpointspergameprev,
+	powerplaypointspergameprev,
+	shotpointspergameprev,
+	blockedshotpointspergameprev,
+	hitpointspergameprev,
+	totalpointspergameprev,
+	positionfinishprev
+FROM seasonfantasystats sfs
+INNER JOIN playerdescriptors pd ON pd.personid = sfs.personid AND pd.season = sfs.season;
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS public.breakoutseasons
+TABLESPACE pg_default
+AS
+ SELECT personid,
+    season,
+    goalpoints,
+    assistpoints,
+    powerplaypoints,
+    shotpoints,
+    blockedshotpoints,
+    hitpoints,
+    totalpoints,
+    birthdate,
+    "position",
+    age,
+    draftposition,
+    yearsinleague,
+    heightincentimeters,
+    weightinkilograms,
+    totalgamesplayed,
+    gamesplayedprev,
+    goalpointsprev,
+    assistpointsprev,
+    powerplaypointsprev,
+    shotpointsprev,
+    blockedshotpointsprev,
+    hitpointsprev,
+    totalpointsprev,
+    goalpointspergameprev,
+    assistpointspergameprev,
+    powerplaypointspergameprev,
+    shotpointspergameprev,
+    blockedshotpointspergameprev,
+    hitpointspergameprev,
+    totalpointspergameprev,
+    positionfinishprev
+   FROM seasonfantasypredictor
+  WHERE totalpoints > 500::numeric AND (totalpoints - totalpointsprev) > 250::numeric
+  ORDER BY totalpoints DESC;
    `;
 
 
